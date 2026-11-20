@@ -77,6 +77,8 @@ export function creerService({ bdd, catalogue, config, discord }) {
       publication: pub ? { url: urlSite(eleve.pseudo), publieLe: pub.publie_le } : null,
       visites: eleve.visites,
       badges: bdd.succes(eleveId),
+      accords: { publication: eleve.accord_publication, vitrine: eleve.accord_vitrine },
+      vitrine: Boolean(eleve.vitrine),
     };
   }
 
@@ -99,7 +101,6 @@ export function creerService({ bdd, catalogue, config, discord }) {
       seances: bdd.seances(eleveId),
       messages: bdd.messages(eleveId),
       urlSite: urlSite(eleve.pseudo),
-      vitrine: Boolean(eleve.vitrine),
       quiz: bdd.quiz(eleveId, 10),
     };
   }
@@ -187,7 +188,38 @@ export function creerService({ bdd, catalogue, config, discord }) {
     return bdd.restaurerVersion(eleveId, versionId);
   }
 
+  // --- Accord de l'élève pour la publication ---------------------------------------
+  /** L'élève demande la publication (et dit s'il accepte la vitrine). */
+  function demanderPublication(eleveId, { vitrine = false } = {}) {
+    const eleve = bdd.eleveParId(eleveId);
+    const maintenant = Date.now();
+    bdd.definirAccords(eleveId, { publication: eleve.accord_publication || maintenant, vitrine: vitrine ? eleve.accord_vitrine || maintenant : null });
+    if (!vitrine) bdd.definirVitrine(eleveId, false);
+    if (!eleve.accord_publication) alerte(`📣 **${eleve.pseudo}** demande la publication de son site${vitrine ? ' (et accepte la vitrine)' : ''}.`);
+  }
+
+  /** L'élève accepte ou refuse la vitrine. Refuser retire aussitôt son site de la vitrine. */
+  function accordVitrine(eleveId, accepte) {
+    const eleve = bdd.eleveParId(eleveId);
+    if (accepte && !eleve.accord_publication) return false;
+    bdd.definirAccords(eleveId, { publication: eleve.accord_publication, vitrine: accepte ? eleve.accord_vitrine || Date.now() : null });
+    if (!accepte) bdd.definirVitrine(eleveId, false);
+    return true;
+  }
+
+  /** L'élève retire son accord : son site est dépublié et sorti de la vitrine immédiatement. */
+  function retirerPublication(eleveId) {
+    const eleve = bdd.eleveParId(eleveId);
+    bdd.definirAccords(eleveId, { publication: null, vitrine: null });
+    bdd.definirVitrine(eleveId, false);
+    const etaitPublie = bdd.depublier(eleveId);
+    if (etaitPublie || eleve.accord_publication) alerte(`🚫 **${eleve.pseudo}** a retiré son site${etaitPublie ? ' (il a été dépublié)' : ''}.`);
+  }
+
   return {
+    demanderPublication,
+    accordVitrine,
+    retirerPublication,
     attribuerBadges,
     badgeSignale,
     proposerQuiz,

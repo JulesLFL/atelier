@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>L'Atelier</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body class="page-eleve">
+  <header class="barre">
+    <div class="marque"><span class="logo" aria-hidden="true">&lt;/&gt;</span> L'Atelier</div>
+
+    <div class="bascule-mode" role="radiogroup" aria-label="Mode">
+      <button role="radio" data-mode="missions" aria-checked="true">🎯 Missions</button>
+      <button role="radio" data-mode="libre" aria-checked="false">🧪 Bac à sable</button>
+    </div>
+
+    <div class="progression-globale" title="Missions réussies (et défis bonus)">
+      <div class="jauge"><div class="jauge-remplie" id="jauge"></div></div>
+      <span id="compteur-missions">0 / 0</span>
+      <span class="compteur-bonus" id="compteur-bonus" title="Défis bonus réussis"></span>
+    </div>
+
+    <div class="barre-droite">
+      <span class="etat-sauvegarde" id="etat-sauvegarde" aria-live="polite">…</span>
+      <div class="taille-police" role="group" aria-label="Taille du code">
+        <button id="police-moins" title="Code plus petit" aria-label="Code plus petit">A−</button>
+        <button id="police-plus" title="Code plus grand" aria-label="Code plus grand">A+</button>
+      </div>
+      <button class="bouton-discret" id="bouton-badges" title="Tes badges">🏅 <span id="compteur-badges">0</span></button>
+      <button class="bouton-discret" id="bouton-mon-site" title="Ton site : lien, QR code, téléchargement">🌍 Mon site</button>
+      <button class="bouton-icone" id="bouton-messages" title="Messages de ton mentor" aria-label="Messages de ton mentor">
+        🔔<span class="pastille" id="pastille-messages" hidden></span>
+      </button>
+      <span class="pseudo" id="pseudo"></span>
+    </div>
+  </header>
+
+  <main class="atelier">
+    <aside class="panneau-gauche" aria-label="Missions et mémo">
+      <nav class="onglets-panneau" role="tablist">
+        <button role="tab" data-panneau="mission" aria-selected="true">🎯 Mission</button>
+        <button role="tab" data-panneau="parcours" aria-selected="false">🗺️ Parcours</button>
+        <button role="tab" data-panneau="memo" aria-selected="false">📒 Mémo</button>
+      </nav>
+      <div class="contenu-panneau" id="panneau-mission" role="tabpanel"></div>
+      <div class="contenu-panneau" id="panneau-parcours" role="tabpanel" hidden></div>
+      <div class="contenu-panneau" id="panneau-memo" role="tabpanel" hidden></div>
+    </aside>
+
+    <section class="zone-editeur" aria-label="Éditeur de code">
+      <div class="entete-zone">
+        <div class="onglets-code" id="onglets-code" role="tablist" aria-label="Fichiers"></div>
+        <div class="outils-editeur">
+          <button class="bouton-icone" id="bouton-annuler" title="Annuler (Ctrl+Z)" aria-label="Annuler">↶</button>
+          <button class="bouton-icone" id="bouton-retablir" title="Rétablir (Ctrl+Y)" aria-label="Rétablir">↷</button>
+          <button class="bouton-discret" id="bouton-reinitialiser" title="Réinitialiser la mission : revenir au code du début de la mission" aria-label="Réinitialiser la mission">⟲<span class="texte-outil"> Réinitialiser</span></button>
+        </div>
+      </div>
+      <div class="editeurs" id="editeurs"></div>
+    </section>
+
+    <section class="zone-apercu" aria-label="Aperçu de ta page">
+      <div class="entete-zone">
+        <div class="titre-zone"><span class="point-direct" aria-hidden="true"></span> Aperçu en direct</div>
+        <div class="bascule-ecran" role="radiogroup" aria-label="Taille de l’écran">
+          <button role="radio" data-ecran="ordinateur" aria-checked="true" title="Comme sur un ordinateur">🖥️</button>
+          <button role="radio" data-ecran="telephone" aria-checked="false" title="Comme sur un téléphone">📱</button>
+        </div>
+      </div>
+      <div class="cadre-apercu" id="cadre-apercu"></div>
+      <div class="console" id="console">
+        <div class="entete-console">
+          <button class="bascule-console" id="entete-console" aria-expanded="true" aria-controls="lignes-console">
+            <span class="chevron" aria-hidden="true">▾</span> 🖥️ Console
+            <span class="compteur-erreurs" hidden></span>
+          </button>
+          <button class="bouton-discret petit vider-console">Effacer</button>
+        </div>
+        <div class="lignes-console" id="lignes-console" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="notifications" id="notifications" aria-live="polite"></div>
+  <script type="module" src="/src/eleve/main.js"></script>
+</body>
+</html>

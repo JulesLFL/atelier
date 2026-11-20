@@ -105,6 +105,11 @@ export const MIGRATIONS = [
   ALTER TABLE eleves ADD COLUMN vitrine INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE eleves ADD COLUMN quiz_propose_le INTEGER;
   `,
+  // Version 3 : accord de l'élève pour la publication et pour la vitrine (date de l'accord)
+  `
+  ALTER TABLE eleves ADD COLUMN accord_publication INTEGER;
+  ALTER TABLE eleves ADD COLUMN accord_vitrine INTEGER;
+  `,
 ];
 
 const VERSIONS_MAX = 60; // versions gardées par élève
@@ -169,7 +174,7 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     eleveParPseudo: db.prepare('SELECT * FROM eleves WHERE pseudo = ?'),
     eleveParCode: db.prepare('SELECT * FROM eleves WHERE code_hash = ?'),
     listeEleves: db.prepare(`
-      SELECT e.id, e.pseudo, e.cree_le, e.derniere_activite, e.temps_actif_s, e.mission_courante, e.visites, e.vitrine,
+      SELECT e.id, e.pseudo, e.cree_le, e.derniere_activite, e.temps_actif_s, e.mission_courante, e.visites, e.vitrine, e.accord_publication,
              (SELECT COUNT(*) FROM progression p WHERE p.eleve_id = e.id AND p.reussie_le IS NOT NULL) AS reussies,
              (SELECT publie_le FROM publications pu WHERE pu.eleve_id = e.id) AS publie_le
       FROM eleves e ORDER BY e.pseudo`),
@@ -243,6 +248,7 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
 
     ajouterVisite: db.prepare('UPDATE eleves SET visites = visites + 1 WHERE id = ?'),
     vitrine: db.prepare('UPDATE eleves SET vitrine = ? WHERE id = ?'),
+    accords: db.prepare('UPDATE eleves SET accord_publication = ?, accord_vitrine = ? WHERE id = ?'),
     listeVitrine: db.prepare(`SELECT e.pseudo, p.html, p.publie_le FROM eleves e JOIN publications p ON p.eleve_id = e.id
       WHERE e.vitrine = 1 ORDER BY p.publie_le DESC`),
   };
@@ -385,6 +391,8 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     // --- Visites et vitrine ---------------------------------------------------------
     ajouterVisite: (id) => q.ajouterVisite.run(id),
     definirVitrine: (id, visible) => q.vitrine.run(visible ? 1 : 0, id),
+    /** Accords de l'élève (date, ou null s'il n'a pas donné / a retiré son accord). */
+    definirAccords: (id, { publication, vitrine }) => q.accords.run(publication ?? null, vitrine ?? null, id),
     listeVitrine: () => q.listeVitrine.all(),
   };
 }

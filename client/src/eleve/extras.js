@@ -1,7 +1,7 @@
 // Badges, quiz d'échauffement et fenêtre « Mon site » (QR code, visites, téléchargement).
 import qrcode from 'qrcode-generator';
 import { h, vider, copier } from '../commun/dom.js';
-import { notifier, fenetre } from '../commun/notifications.js';
+import { notifier, fenetre, confirmer } from '../commun/notifications.js';
 import { confettis } from './celebration.js';
 
 // --------------------------------------------------------------------------
@@ -138,26 +138,93 @@ function dessinerQr(texte) {
   return toile;
 }
 
-export function ouvrirMonSite({ publication, visites, pseudo }) {
+/**
+ * Fenêtre « Mon site ». Trois cas :
+ *  - pas encore d'accord : l'élève peut demander la publication (et accepter ou non la vitrine) ;
+ *  - accord donné, pas encore publié : la demande attend le mentor (annulable) ;
+ *  - publié : QR code, lien, visites, accord vitrine modifiable, retrait possible à tout moment.
+ * @param {{ publication, visites, pseudo, accords: {publication, vitrine}, vitrine: boolean,
+ *           demander: (vitrine: boolean) => Promise, retirer: () => Promise, accordVitrine: (oui: boolean) => Promise }} o
+ */
+export function ouvrirMonSite(o) {
+  const { publication, visites, pseudo, accords } = o;
   const telecharger = h('a', { class: 'bouton-secondaire', href: '/api/eleve/site.zip', download: `site-${pseudo}.zip` }, '⬇️ Télécharger mon site (.zip)');
-  if (!publication) {
-    fenetre(
+  let fermer;
+  const rouvrir = (etat) => {
+    fermer?.();
+    ouvrirMonSite({ ...o, ...etat });
+  };
+
+  const caseVitrine = (coche, surChangement) => {
+    const entree = h('input', { type: 'checkbox', checked: coche, onchange: (e) => surChangement(e.target.checked) });
+    return h('label', { class: 'case-accord' }, entree, h('span', {}, 'Mon site peut aussi apparaître dans la ', h('a', { href: '/vitrine', target: '_blank', rel: 'noopener' }, 'vitrine'), ' de l’Atelier.'));
+  };
+
+  // 1. Pas encore d'accord
+  if (!publication && !accords?.publication) {
+    let vitrine = false;
+    const bouton = h('button', { class: 'bouton-principal' }, '📣 Demander la publication');
+    bouton.addEventListener('click', async () => {
+      bouton.disabled = true;
+      await o.demander(vitrine);
+      notifier({ icone: '📣', texte: 'Demande envoyée à ton mentor !', type: 'succes', duree: 4000 });
+      rouvrir({ accords: { publication: Date.now(), vitrine: vitrine ? Date.now() : null } });
+    });
+    fermer = fenetre(
       '🌍 Mon site',
-      h('p', {}, 'Ton site n’est pas encore publié. Quand il sera prêt, demande à ton mentor de le mettre en ligne : tu auras une adresse à partager et un QR code pour le montrer à tes proches !'),
-      h('p', {}, 'En attendant, tu peux déjà récupérer tes fichiers :'),
-      telecharger,
+      h('p', {}, 'Ton site n’est pas encore en ligne. Quand il est prêt, demande à ton mentor de le publier : il aura sa propre adresse et un QR code à montrer à tes proches.'),
+      h(
+        'div',
+        { class: 'avant-publier' },
+        h('strong', {}, '🔒 Avant de demander, vérifie que ton site ne montre pas :'),
+        h('ul', {}, h('li', {}, 'ton nom de famille, ton adresse, ton école ou ton numéro ;'), h('li', {}, 'des photos de toi ou de tes proches ;'), h('li', {}, 'des informations sur d’autres personnes.')),
+        h('p', {}, 'Une fois publié, ton site est visible par toutes les personnes qui ont son adresse. Tu pourras le retirer quand tu veux.'),
+      ),
+      caseVitrine(false, (oui) => (vitrine = oui)),
+      h('div', { class: 'ligne-boutons' }, bouton, telecharger),
     );
     return;
   }
+
+  // 2. Demande envoyée, en attente du mentor
+  if (!publication) {
+    const annuler = h('button', { class: 'bouton-secondaire' }, 'Annuler ma demande');
+    annuler.addEventListener('click', async () => {
+      await o.retirer();
+      rouvrir({ accords: { publication: null, vitrine: null } });
+    });
+    fermer = fenetre(
+      '🌍 Mon site',
+      h('p', { class: 'statut-demande' }, `⏳ Demande envoyée ${new Date(accords.publication).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}. Ton mentor va relire ton site, puis le publier.`),
+      h('p', {}, accords.vitrine ? '🖼️ Tu as accepté qu’il apparaisse aussi dans la vitrine.' : 'Il n’apparaîtra pas dans la vitrine.'),
+      h('div', { class: 'ligne-boutons' }, annuler, telecharger),
+    );
+    return;
+  }
+
+  // 3. Publié
   const boutonCopier = h('button', { class: 'bouton-secondaire' }, '📋 Copier le lien');
   boutonCopier.addEventListener('click', async () => {
     boutonCopier.textContent = (await copier(publication.url)) ? '✓ Copié !' : 'Oups';
     setTimeout(() => (boutonCopier.textContent = '📋 Copier le lien'), 1500);
   });
-  fenetre(
+  const retirer = h('button', { class: 'bouton-danger' }, '🚫 Retirer mon site d’internet');
+  retirer.addEventListener('click', async () => {
+    const ok = await confirmer({ titre: 'Retirer ton site ?', texte: 'Il ne sera plus visible à son adresse ni dans la vitrine. Ton travail, lui, reste dans ton atelier : tu pourras redemander la publication plus tard.', ok: 'Retirer', danger: true });
+    if (!ok) return;
+    await o.retirer();
+    notifier({ icone: '🚫', texte: 'Ton site n’est plus en ligne.', duree: 4000 });
+    rouvrir({ publication: null, accords: { publication: null, vitrine: null } });
+  });
+  fermer = fenetre(
     '🌍 Mon site',
     h('div', { class: 'mon-site' }, dessinerQr(publication.url), h('div', {}, h('p', {}, 'Scanne ce QR code avec un téléphone, ou partage le lien :'), h('p', {}, h('a', { href: publication.url, target: '_blank', rel: 'noopener' }, publication.url)), h('p', { class: 'visites' }, `👀 ${visites} visite${visites > 1 ? 's' : ''}`))),
     h('div', { class: 'ligne-boutons' }, boutonCopier, telecharger),
+    caseVitrine(Boolean(accords?.vitrine), async (oui) => {
+      await o.accordVitrine(oui);
+      notifier({ icone: '🖼️', texte: oui ? 'Merci ! Ton mentor pourra l’ajouter à la vitrine.' : 'Ton site a été retiré de la vitrine.', duree: 4000 });
+    }),
     h('p', { class: 'aide-mon-site' }, 'Le site en ligne est une copie : quand tu l’améliores, demande à ton mentor de le mettre à jour.'),
+    h('div', { class: 'ligne-boutons' }, retirer),
   );
 }

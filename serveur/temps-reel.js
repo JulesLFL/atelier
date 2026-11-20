@@ -100,6 +100,28 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
       if (ok) etatPourMentor(id);
     });
 
+    // Publication : l'élève donne (ou retire) son accord. Le mentor valide ensuite.
+    const apresAccord = () => {
+      versEleve(id, 'etat:maj', service.etatEleve(id));
+      etatPourMentor(id);
+      mentors.emit('eleve:accord', { id, pseudo: bdd.eleveParId(id)?.pseudo, accords: service.etatEleve(id).accords, publie: Boolean(bdd.publication(id)) });
+    };
+    socket.on('publication:demander', (donnees, rappel) => {
+      service.demanderPublication(id, { vitrine: donnees?.vitrine === true });
+      repondre(rappel, { ok: true });
+      apresAccord();
+    });
+    socket.on('publication:retirer', (rappel) => {
+      service.retirerPublication(id);
+      repondre(rappel, { ok: true });
+      apresAccord();
+    });
+    socket.on('vitrine:accord', (accepte, rappel) => {
+      const ok = service.accordVitrine(id, accepte === true);
+      repondre(rappel, { ok });
+      if (ok) apresAccord();
+    });
+
     // Badges d'exploration signalés par le navigateur (liste fermée, côté serveur).
     socket.on('badge:evenement', (badge) => {
       if (typeof badge === 'string') annoncerBadges(service.badgeSignale(id, badge));

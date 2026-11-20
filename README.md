@@ -10,6 +10,20 @@ Le mentor suit tout en temps réel, débloque les étapes et publie le site fina
 - **Panneau mentor** (`/mentor`) : déblocages, vue en direct (code, aperçu, console, checklist), **montrer une ligne** à l'élève d'un clic, messages et indices, quiz, progression, **historique des versions** restaurable, **notes privées**, publication.
 - **Sites publiés** : `/site/<pseudo>`, une copie figée avec QR code, compteur de visites anonyme, téléchargement en .zip, et **vitrine** publique facultative (`/vitrine`).
 - **Sauvegardes** quotidiennes chiffrées, vérifiées et tournantes, plus des **alertes Discord** (optionnelles).
+- **Pages publiques** : page d'accueil, vitrine, mentions légales, politique de confidentialité et conditions d'utilisation.
+
+| Adresse | Page |
+|---|---|
+| `/` | Page d'accueil publique (présentation, dernières créations, FAQ, parents) |
+| `/connexion` | Connexion de l'élève avec son code (`/entree` y redirige) |
+| `/e/<code>` | Lien personnel : connecte directement l'élève |
+| `/atelier` | L'atelier de l'élève (connexion obligatoire) |
+| `/mentor` | Panneau mentor |
+| `/vitrine` | Les sites cochés par le mentor |
+| `/site/<pseudo>` | Le site publié d'un élève |
+| `/mentions-legales`, `/confidentialite`, `/conditions` | Pages légales |
+
+![Page d'accueil](docs/accueil.png)
 
 ---
 
@@ -54,7 +68,8 @@ npm run dev        # serveur + interface avec rechargement automatique (Vite)
 npm run build && npm start
 ```
 
-- Atelier de l'élève : <http://localhost:3000> (redirige vers `/entree` si pas connecté)
+- Page d'accueil : <http://localhost:3000>
+- Atelier de l'élève : <http://localhost:3000/atelier> (redirige vers `/connexion` si pas connecté)
 - Panneau mentor : <http://localhost:3000/mentor>
 
 Dans le panneau mentor, clique sur **« + Nouveau »**, choisis un pseudo : tu obtiens le **lien personnel** de l'élève.
@@ -75,6 +90,12 @@ npm run build && npm run test:navigateur # tests dans un vrai navigateur (~1 min
 - le panneau mentor : vue en direct, ligne montrée, déblocage, publication, vitrine, historique, notes, sauvegarde chiffrée.
 
 Les captures d'écran sont enregistrées dans `tests/navigateur/captures/`.
+
+```bash
+npm run build && npm run captures         # captures de démonstration (élèves et sites fictifs)
+```
+
+`captures` lance l'Atelier avec trois élèves fictifs, puis capture l'atelier (l'image `client/public/images/apercu-atelier.png` affichée sur la page d'accueil) et toutes les pages publiques, sur ordinateur et sur téléphone. Refais-le après avoir changé le design de l'atelier, puis `npm run build`.
 
 ---
 
@@ -307,7 +328,7 @@ Puis redémarre le serveur, ou fais `git push` puis *Pull and redeploy* sur le N
 3. **Débloquer la suite** : onglet **🗺️ Parcours**. L'interrupteur d'un module ouvre ses missions, qui se débloquent ensuite une par une ; les **défis bonus ⭐** s'ouvrent quand le module est fini, sans bloquer la suite. Le menu *Accès* d'une mission force son ouverture ou sa fermeture. Le bouton *Valider* sert si une vérification automatique bloque injustement.
 4. **Il a tout cassé ou tout effacé ?** Onglet **🕓 Historique** : une copie est faite à chaque début de séance et à chaque publication. Choisis une version, regarde l'aperçu, *Restaurer* : son éditeur se met à jour en direct (et le code d'avant est gardé).
 5. **Après la séance** : onglet **📝 Notes** (privé, enregistré tout seul), bouton *+ Séance du jour*.
-6. **Publier** : onglet **🌍 Publication** → *Publier le site*. C'est une **copie figée** : refais *Mettre à jour* pour publier les nouveautés. Tu peux l'ajouter à la **vitrine** publique, voir le nombre de visites et télécharger le .zip.
+6. **Publier** : quand l'élève a demandé la publication (📣 à côté de son nom, et une notification), relis son site puis onglet **🌍 Publication** → *Publier le site*. C'est une **copie figée** : refais *Mettre à jour* pour publier les nouveautés. Tu peux l'ajouter à la **vitrine** publique, voir le nombre de visites et télécharger le .zip.
 
 Côté élève :
 
@@ -339,6 +360,20 @@ Côté élève :
 
 ---
 
+### Pages légales
+
+Les textes sont dans `client/mentions-legales.html`, `client/confidentialite.html` et `client/conditions.html`. Ils décrivent ce que fait **réellement** le code (données, cookies, durées, prestataires) : si tu ajoutes une fonctionnalité qui touche aux données (nouveau prestataire, nouvelle information stockée…), mets-les à jour, ainsi que la date « Dernière mise à jour ».
+
+Engagements pris dans la politique de confidentialité, à tenir à la main :
+
+- supprimer les comptes inactifs depuis plus d'un an (le panneau mentor les signale par un 💤) ;
+- répondre aux demandes d'accès ou de suppression sous un mois ;
+- relire un site avant de le publier.
+
+L'accord de l'élève, lui, est imposé par l'application : il demande la publication depuis son atelier (**🌍 Mon site → Demander la publication**, avec une case à part pour la vitrine). Tant qu'il ne l'a pas fait, le serveur refuse de publier, et refuse la vitrine sans la case cochée. Il peut retirer son site ou le sortir de la vitrine lui-même, immédiatement.
+
+---
+
 ## 9. Organisation du code
 
 ```
@@ -362,7 +397,11 @@ serveur/
   outils/sauvegardes.js    liste / vérification / restauration en ligne de commande
   routes/                  eleve.js · mentor.js · site.js (sites publiés, vitrine, visites)
 client/
-  index.html · entree.html · mentor.html
+  index.html               page d'accueil publique
+  connexion.html · atelier.html · mentor.html · vitrine.html
+  mentions-legales.html · confidentialite.html · conditions.html
+  public/images/           illustration de l'accueil (générée par « npm run captures »)
+  src/public/              scripts des pages publiques (accueil, vitrine, pages légales)
   src/commun/              editeur (CodeMirror 6), apercu (iframes), sonde (script injecté
                            dans l'aperçu), console, erreurs en français, notifications
   src/eleve/               atelier de l'élève (missions, parcours, mémo, célébration, badges, quiz, Mon site)

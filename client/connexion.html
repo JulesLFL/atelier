@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Connexion · L'Atelier</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body class="page-publique page-connexion">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-public">
+    <div class="conteneur">
+      <a class="marque" href="/"><span class="logo" aria-hidden="true">&lt;/&gt;</span> L'Atelier</a>
+      <nav class="nav-publique" aria-label="Navigation principale">
+        <a href="/">Accueil</a>
+        <a href="/vitrine">Vitrine</a>
+        <a class="bouton-principal toujours" href="/connexion">Se connecter</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenu">
+    <div class="carte-entree">
+      <div class="logo-grand" aria-hidden="true">&lt;/&gt;</div>
+      <h1>Connexion</h1>
+      <p class="sous-titre">Entre ton code pour retrouver <strong>ton site</strong>. 🚀</p>
+      <form id="formulaire-entree" autocomplete="off">
+        <label for="code">Ton code d'accès</label>
+        <input id="code" name="code" inputmode="text" autocapitalize="characters" spellcheck="false"
+               placeholder="XXXX-XXXX-XXXX" maxlength="14" required aria-describedby="erreur-entree aide-code">
+        <p class="erreur" id="erreur-entree" role="alert"></p>
+        <button type="submit" class="bouton-principal">Entrer dans l'atelier →</button>
+      </form>
+      <p class="aide" id="aide-code">Tu as reçu un lien ? Ouvre-le directement : tu arriveras dans ton atelier sans rien taper.<br>Pas de code ? Demande-le à ton mentor.</p>
+    </div>
+  </main>
+  <footer class="pied-public">
+    <div class="conteneur">
+      <p>© 2026 L'Atelier · un projet de <a href="https://juleslfl.dev" rel="noopener">Jules_LFL</a></p>
+      <nav aria-label="Liens utiles">
+        <a href="/">Accueil</a>
+        <a href="/vitrine">Vitrine</a>
+        <a href="/mentor">Espace mentor</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Confidentialité</a>
+        <a href="/conditions">Conditions d'utilisation</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/eleve/entree.js"></script>
+</body>
+</html>

@@ -6,3 +6,4 @@ donnees
 tests/navigateur/captures
 *.db
 *.db-*
+docs

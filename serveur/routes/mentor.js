@@ -194,6 +194,8 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
   });
 
   r.post('/eleves/:id/publication', (req, res) => {
+    // Rien n'est publié sans l'accord de l'élève, donné depuis son atelier.
+    if (!req.eleve.accord_publication) return res.status(409).json({ erreur: 'L’élève n’a pas encore demandé la publication (bouton « Mon site » de son atelier).' });
     service.ecrireMaintenant(req.eleve.id); // on publie la toute dernière version
     bdd.ajouterVersion(req.eleve.id, 'publication');
     const { onglets } = service.etatDeblocage(req.eleve.id);
@@ -206,6 +208,8 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
 
   r.put('/eleves/:id/vitrine', (req, res) => {
     if (typeof req.body?.visible !== 'boolean') return res.status(400).json({ erreur: '« visible » doit valoir true ou false.' });
+    if (req.body.visible && !req.eleve.accord_vitrine) return res.status(409).json({ erreur: 'L’élève n’a pas accepté que son site soit dans la vitrine.' });
+    if (req.body.visible && !bdd.publication(req.eleve.id)) return res.status(409).json({ erreur: 'Le site doit d’abord être publié.' });
     bdd.definirVitrine(req.eleve.id, req.body.visible);
     res.json({ visible: req.body.visible });
   });

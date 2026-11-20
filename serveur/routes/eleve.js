@@ -1,6 +1,6 @@
 // Routes de l'élève : connexion par code d'accès et récupération de son état.
 import { Router } from 'express';
-import { COOKIE_ELEVE, creerLimiteur, ipClient } from '../auth.js';
+import { COOKIE_ELEVE, creerLimiteur, ipClient, lireCookies } from '../auth.js';
 import { validerCode } from '../validation.js';
 import { envoyerZip } from '../telechargement.js';
 import { BADGES } from '../badges.js';
@@ -29,7 +29,7 @@ export function routesEleve({ bdd, auth, service, catalogue }) {
   r.get('/e/:code', (req, res) => {
     const resultat = connexion(req, res, req.params.code);
     res.setHeader('Referrer-Policy', 'no-referrer');
-    res.redirect(303, resultat.eleve ? '/' : `/entree?erreur=${resultat.statut === 429 ? 'trop' : 'code'}`);
+    res.redirect(303, resultat.eleve ? '/atelier' : `/connexion?erreur=${resultat.statut === 429 ? 'trop' : 'code'}`);
   });
 
   r.post('/api/entree', (req, res) => {
@@ -41,6 +41,12 @@ export function routesEleve({ bdd, auth, service, catalogue }) {
   r.post('/api/sortie', (req, res) => {
     auth.deconnecter(res, COOKIE_ELEVE);
     res.json({ ok: true });
+  });
+
+  // Pour la page d'accueil : l'élève est-il connecté ? (pseudo seulement)
+  r.get('/api/eleve/session', (req, res) => {
+    const eleve = auth.eleveDepuisCookies(lireCookies(req.headers.cookie));
+    res.json(eleve ? { connecte: true, pseudo: eleve.pseudo } : { connecte: false });
   });
 
   r.get('/api/missions', auth.exigerEleve, (req, res) => res.json({ ...catalogue.public, badges: BADGES }));

@@ -137,6 +137,8 @@ function rendreListe() {
               h('span', { class: 'nom' }, e.pseudo),
               h('span', { class: 'mini-progression' }, `${e.reussies}/${e.total}`),
               e.publie_le && h('span', { title: 'Site publié' }, '🌍'),
+              !e.publie_le && e.accord_publication && h('span', { class: 'demande-publication', title: 'Demande la publication de son site' }, '📣'),
+              e.derniere_activite && Date.now() - e.derniere_activite > 365 * 86400000 && h('span', { title: 'Inactif depuis plus d’un an : d’après la politique de confidentialité, pense à supprimer ce compte.' }, '💤'),
             ),
           ),
         )
@@ -602,6 +604,16 @@ function ongletPublication(c) {
     c,
     h(
       'div',
+      { class: `carte-accord${f.accords?.publication ? ' ok' : ''}` },
+      f.accords?.publication
+        ? [
+            h('strong', {}, `✅ L’élève a demandé la publication (${dateRelative(f.accords.publication)})`),
+            h('span', {}, f.accords.vitrine ? ' · 🖼️ il accepte la vitrine' : ' · il ne souhaite pas apparaître dans la vitrine'),
+          ]
+        : h('strong', {}, '⏳ L’élève n’a pas encore demandé la publication. Il le fait depuis son atelier : « 🌍 Mon site → Demander la publication ».'),
+    ),
+    h(
+      'div',
       { class: 'carte-publication' },
       pub
         ? [
@@ -617,6 +629,7 @@ function ongletPublication(c) {
                 type: 'checkbox',
                 role: 'switch',
                 checked: f.vitrine,
+                disabled: !f.accords?.vitrine && !f.vitrine,
                 onchange: async (e) => {
                   try {
                     await api('PUT', `/api/mentor/eleves/${M.selection}/vitrine`, { visible: e.target.checked });
@@ -631,12 +644,13 @@ function ongletPublication(c) {
               h('span', { class: 'glissiere', 'aria-hidden': 'true' }),
               'Afficher dans la ',
               h('a', { href: '/vitrine', target: '_blank', rel: 'noopener' }, 'vitrine publique'),
+              !f.accords?.vitrine && h('small', { class: 'mini-attente' }, ' (l’élève ne l’a pas accepté)'),
             ),
           ]
         : [
             h('p', { class: 'statut-pub' }, '⚪ Pas encore publié'),
             h('p', { class: 'aide-onglet' }, `Publier crée une copie du site de l’élève à l’adresse ${f.urlSite}. Seuls les modules débloqués (${f.etat.onglets.map((o) => o.toUpperCase()).join(', ')}) sont inclus.`),
-            h('button', { class: 'bouton-principal', onclick: publier }, '🌍 Publier le site'),
+            h('button', { class: 'bouton-principal', onclick: publier, disabled: !f.accords?.publication, title: f.accords?.publication ? '' : 'En attente de l’accord de l’élève' }, '🌍 Publier le site'),
           ],
     ),
     h('section', { class: 'carte-publication' }, h('h2', {}, '⬇️ Fichiers du site'), h('p', { class: 'aide-onglet' }, 'Le code actuel de l’élève (pas forcément la version publiée), en .zip : index.html, style.css, script.js.'), h('a', { class: 'bouton-secondaire', href: `/api/mentor/eleves/${M.selection}/site.zip` }, 'Télécharger le .zip')),
@@ -762,6 +776,13 @@ function connecterTempsReel() {
       e.reussies = fiche.etat.missions.filter((m) => m.statut === 'reussie').length;
       rendreListe();
     }
+  });
+  socket.on('eleve:accord', async ({ id, pseudo, accords, publie }) => {
+    if (accords?.publication && !publie) notifier({ icone: '📣', titre: 'Demande de publication', texte: `${pseudo} demande la publication de son site.`, type: 'succes', duree: 0 });
+    if (!accords?.publication) notifier({ icone: '🚫', texte: `${pseudo} a retiré son site (ou annulé sa demande).`, duree: 8000 });
+    await chargerEleves();
+    rendreListe();
+    if (M.selection === id) await rechargerFiche();
   });
   socket.on('eleve:quiz', ({ score, total }) => {
     notifier({ icone: '🧩', titre: 'Quiz terminé', texte: `${M.fiche?.eleve.pseudo || 'L’élève'} : ${score}/${total}`, type: score === total ? 'succes' : 'info', duree: 8000 });

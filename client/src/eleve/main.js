@@ -37,6 +37,7 @@ const S = {
   publication: null,
   badges: [],
   visites: 0,
+  accords: { publication: null, vitrine: null },
   ecran: prefs.lire('ecran', 'ordinateur'),
 };
 
@@ -58,7 +59,7 @@ async function demarrer() {
   try {
     [donnees, S.catalogue] = await Promise.all([api('GET', '/api/eleve/etat'), api('GET', '/api/missions')]);
   } catch (e) {
-    if (e.statut === 401) return location.replace('/entree');
+    if (e.statut === 401) return location.replace('/connexion');
     document.body.prepend(h('div', { class: 'bandeau-erreur', role: 'alert' }, `Impossible de charger l’atelier : ${e.message}`));
     return;
   }
@@ -104,6 +105,7 @@ function appliquerEtat(donnees, { silencieux = false } = {}) {
   S.publication = donnees.publication;
   S.badges = donnees.badges || S.badges;
   S.visites = donnees.visites ?? S.visites;
+  S.accords = donnees.accords ?? S.accords;
   if (donnees.missionCourante !== undefined && donnees.missionCourante !== S.missionCourante) {
     S.missionCourante = donnees.missionCourante;
     S.resultats = null;
@@ -371,7 +373,18 @@ function brancherInterface() {
   document.getElementById('bouton-reinitialiser').addEventListener('click', reinitialiserMission);
   document.getElementById('bouton-messages').addEventListener('click', ouvrirMessages);
   document.getElementById('bouton-badges').addEventListener('click', () => ouvrirBadges(S.catalogue.badges, S.badges));
-  document.getElementById('bouton-mon-site').addEventListener('click', () => ouvrirMonSite({ publication: S.publication, visites: S.visites, pseudo: S.eleve.pseudo }));
+  const demander = (evt, donnees) => new Promise((ok) => (donnees === undefined ? socket.emit(evt, ok) : socket.emit(evt, donnees, ok)));
+  document.getElementById('bouton-mon-site').addEventListener('click', () =>
+    ouvrirMonSite({
+      publication: S.publication,
+      visites: S.visites,
+      pseudo: S.eleve.pseudo,
+      accords: S.accords,
+      demander: (vitrine) => demander('publication:demander', { vitrine }),
+      retirer: () => demander('publication:retirer'),
+      accordVitrine: (oui) => demander('vitrine:accord', oui),
+    }),
+  );
   document.querySelectorAll('.bascule-ecran [data-ecran]').forEach((b) =>
     b.addEventListener('click', () => {
       S.ecran = b.dataset.ecran;
@@ -469,7 +482,7 @@ function sessionTerminee() {
     h(
       'div',
       { class: 'fond-modal' },
-      h('div', { class: 'modal', role: 'alertdialog' }, h('h2', {}, '🔒 Session terminée'), h('p', {}, 'Ton lien d’accès a changé. Demande le nouveau à ton mentor.'), h('div', { class: 'modal-actions' }, h('a', { class: 'bouton-principal', href: '/entree' }, 'Entrer un code'))),
+      h('div', { class: 'modal', role: 'alertdialog' }, h('h2', {}, '🔒 Session terminée'), h('p', {}, 'Ton lien d’accès a changé. Demande le nouveau à ton mentor.'), h('div', { class: 'modal-actions' }, h('a', { class: 'bouton-principal', href: '/connexion' }, 'Entrer un code'))),
     ),
   );
 }

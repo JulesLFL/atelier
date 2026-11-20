@@ -35,6 +35,8 @@ const CSP_APP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
+const PAGES_INDEXABLES = new Set(['/', '/mentions-legales', '/confidentialite', '/conditions', '/robots.txt']);
+
 export async function creerApplication(config, { front = true, fichierBdd, sauvegardesAuto = true } = {}) {
   const enMemoire = fichierBdd === ':memory:';
   const discord = creerDiscord(config.webhookDiscord);
@@ -82,8 +84,9 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
 
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    // Les élèves sont mineurs : rien de ce site n'est indexé par les moteurs de recherche.
-    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    // Les élèves sont mineurs : rien n'est indexé par les moteurs de recherche, sauf la page
+    // d'accueil et les pages légales.
+    if (!PAGES_INDEXABLES.has(req.path)) res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
     if (!req.path.startsWith('/site/')) {
@@ -129,7 +132,16 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
 /** Pages de l'interface : en production depuis dist/, en développement via Vite. */
 async function brancherFront(app, { auth }) {
   const dist = path.join(RACINE, 'dist');
-  const pages = { eleve: 'index.html', entree: 'entree.html', mentor: 'mentor.html' };
+  const pages = {
+    accueil: 'index.html',
+    atelier: 'atelier.html',
+    connexion: 'connexion.html',
+    mentor: 'mentor.html',
+    vitrine: 'vitrine.html',
+    mentions: 'mentions-legales.html',
+    confidentialite: 'confidentialite.html',
+    conditions: 'conditions.html',
+  };
   let envoyerPage;
 
   if (existsSync(path.join(dist, 'index.html'))) {
@@ -148,10 +160,20 @@ async function brancherFront(app, { auth }) {
     };
   }
 
-  app.get('/', (req, res) => {
-    if (!auth.eleveDepuisCookies(lireCookies(req.headers.cookie))) return res.redirect(303, '/entree');
-    envoyerPage(res, 'eleve', req.originalUrl);
-  });
-  app.get('/entree', (req, res) => envoyerPage(res, 'entree', req.originalUrl));
+  const connecte = (req) => Boolean(auth.eleveDepuisCookies(lireCookies(req.headers.cookie)));
+
+  // Pages publiques
+  app.get('/', (req, res) => envoyerPage(res, 'accueil', req.originalUrl));
+  app.get('/vitrine', (req, res) => envoyerPage(res, 'vitrine', req.originalUrl));
+  app.get('/mentions-legales', (req, res) => envoyerPage(res, 'mentions', req.originalUrl));
+  app.get('/confidentialite', (req, res) => envoyerPage(res, 'confidentialite', req.originalUrl));
+  app.get('/conditions', (req, res) => envoyerPage(res, 'conditions', req.originalUrl));
+
+  // Connexion (déjà connecté : direction l'atelier). /entree = ancienne adresse.
+  app.get('/connexion', (req, res) => (connecte(req) ? res.redirect(303, '/atelier') : envoyerPage(res, 'connexion', req.originalUrl)));
+  app.get('/entree', (req, res) => res.redirect(301, `/connexion${req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''}`));
+
+  // Espaces privés
+  app.get('/atelier', (req, res) => (connecte(req) ? envoyerPage(res, 'atelier', req.originalUrl) : res.redirect(303, '/connexion')));
   app.get('/mentor', (req, res) => envoyerPage(res, 'mentor', req.originalUrl));
 }

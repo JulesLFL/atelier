@@ -51,7 +51,7 @@ describe('Élèves', () => {
     const e = await t.nouvelEleve(m, 'carl');
     const a = t.agent();
     const r = await a.get(`/e/${e.code.toLowerCase()}`).expect(303);
-    expect(r.headers.location).toBe('/');
+    expect(r.headers.location).toBe('/atelier');
     const etat = await a.get('/api/eleve/etat').expect(200);
     expect(etat.body.eleve.pseudo).toBe('carl');
     expect(etat.body.missionCourante).toBe('html-1');
@@ -180,6 +180,7 @@ describe('Publication', () => {
       .expect(200);
 
     await t.agent().get('/site/pub').expect(404);
+    t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
 
     const r = await t.agent().get('/site/pub').expect(200);
@@ -302,6 +303,7 @@ describe('Site publié : visites, vitrine, zip', () => {
     const m = await t.mentor();
     const e = await t.nouvelEleve(m, 'visites');
     const a = await t.connecterEleve(e.code);
+    t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
     const visiter = (ip, ua = 'Mozilla/5.0 Firefox', extra = {}) => t.agent().get('/site/visites').set({ 'CF-Connecting-IP': ip, 'User-Agent': ua, ...extra }).expect(200);
     await visiter('1.1.1.1');
@@ -318,14 +320,15 @@ describe('Site publié : visites, vitrine, zip', () => {
   it('vitrine : seulement les sites cochés, jamais indexée', async () => {
     const m = await t.mentor();
     const e = await t.nouvelEleve(m, 'vitrine');
+    t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
-    let r = await t.agent().get('/vitrine').expect(200);
-    expect(r.text).not.toContain('/site/vitrine');
+    let r = await t.agent().get('/api/vitrine').expect(200);
+    expect(r.body.map((s) => s.pseudo)).not.toContain('vitrine');
     expect(r.headers['x-robots-tag']).toMatch(/noindex/);
     await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: true }).expect(200);
-    r = await t.agent().get('/vitrine').expect(200);
-    expect(r.text).toContain('/site/vitrine');
-    expect(r.text).toMatch(/<iframe src="\/site\/vitrine" sandbox=""/);
+    r = await t.agent().get('/api/vitrine').expect(200);
+    const site = r.body.find((s) => s.pseudo === 'vitrine');
+    expect(Object.keys(site).sort()).toEqual(['pseudo', 'publieLe', 'titre']); // rien d'autre ne sort
     await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: 'oui' }).expect(400);
   });
 
@@ -345,5 +348,60 @@ describe('Site publié : visites, vitrine, zip', () => {
     expect(contenu.includes(Buffer.from('site-zip/index.html'))).toBe(true);
     expect(contenu.includes(Buffer.from('site-zip/script.js'))).toBe(false); // JS pas encore débloqué
     await t.agent().get('/api/eleve/site.zip').expect(401);
+  });
+});
+
+describe('Pages publiques et adresses', () => {
+  it('session élève : seulement « connecté » et le pseudo', async () => {
+    expect((await t.agent().get('/api/eleve/session').expect(200)).body).toEqual({ connecte: false });
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'session');
+    const a = await t.connecterEleve(e.code);
+    expect((await a.get('/api/eleve/session').expect(200)).body).toEqual({ connecte: true, pseudo: 'session' });
+  });
+
+  it('un mauvais lien personnel renvoie vers la page de connexion', async () => {
+    const r = await t.agent().get('/e/AAAA-BBBB-CCCC').set('CF-Connecting-IP', '10.9.9.9').expect(303);
+    expect(r.headers.location).toBe('/connexion?erreur=code');
+  });
+});
+
+describe('Accord de l’élève avant publication', () => {
+  it('rien n’est publié sans sa demande ; la vitrine exige la case cochée ; il peut tout retirer', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'accord');
+    const a = await t.connecterEleve(e.code);
+    const se = t.socket('/eleve', a);
+    const sm = t.socket('/mentor', m);
+    await Promise.all([attendreEvt(se, 'connect'), attendreEvt(sm, 'connect')]);
+
+    // Sans accord : refusé
+    let r = await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1');
+    expect(r.status).toBe(409);
+    expect(r.body.erreur).toMatch(/pas encore demandé/);
+
+    // L'élève demande, SANS la vitrine : le mentor est prévenu en direct
+    const demande = attendreEvt(sm, 'eleve:accord');
+    await emettre(se, 'publication:demander', { vitrine: false });
+    expect((await demande).accords.publication).toBeTypeOf('number');
+    await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
+    r = await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: true });
+    expect(r.status).toBe(409);
+
+    // Il accepte la vitrine : le mentor peut l'y ajouter
+    await emettre(se, 'vitrine:accord', true);
+    await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: true }).expect(200);
+    expect((await t.agent().get('/api/vitrine')).body.some((x) => x.pseudo === 'accord')).toBe(true);
+
+    // Il refuse la vitrine : retiré aussitôt
+    await emettre(se, 'vitrine:accord', false);
+    expect((await t.agent().get('/api/vitrine')).body.some((x) => x.pseudo === 'accord')).toBe(false);
+
+    // Il retire son site : dépublié immédiatement, et plus de publication possible
+    await emettre(se, 'publication:retirer');
+    await t.agent().get('/site/accord').expect(404);
+    expect((await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1')).status).toBe(409);
+    se.disconnect();
+    sm.disconnect();
   });
 });

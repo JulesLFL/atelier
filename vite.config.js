@@ -12,11 +12,9 @@ export default defineConfig({
     target: 'es2020',
     chunkSizeWarningLimit: 900, // CodeMirror et ses langages pèsent ~650 Ko (≈ 220 Ko compressés)
     rollupOptions: {
-      input: {
-        index: resolve(racine, 'client/index.html'),
-        entree: resolve(racine, 'client/entree.html'),
-        mentor: resolve(racine, 'client/mentor.html'),
-      },
+      input: Object.fromEntries(
+        ['index', 'atelier', 'connexion', 'mentor', 'vitrine', 'mentions-legales', 'confidentialite', 'conditions'].map((page) => [page, resolve(racine, `client/${page}.html`)]),
+      ),
     },
   },
   resolve: { alias: { '@partage': resolve(racine, 'partage') } },

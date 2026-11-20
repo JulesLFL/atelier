@@ -116,7 +116,7 @@ try {
   const { code, eleve } = appli.bdd.creerEleve('alex');
   const debut = Date.now();
   await nav.aller(`${BASE}/e/${code}`);
-  ok(await nav.evaluer('location.pathname') === '/', 'le lien personnel ouvre l’atelier (et le code disparaît de l’URL)');
+  ok(await nav.evaluer('location.pathname') === '/atelier', 'le lien personnel ouvre l’atelier (et le code disparaît de l’URL)');
   await nav.attendre("document.querySelector('.cm-content')", { message: 'éditeur affiché' });
   await nav.attendre("document.querySelector('#checklist li')", { message: 'mission affichée' });
   ok((await nav.evaluer("document.querySelector('.titre-mission').textContent")) === 'Ton tout premier titre', 'la mission 1 est affichée');
@@ -184,6 +184,20 @@ try {
   await nav.capture(path.join(CAPTURES, '2d-quiz.png'));
   await nav.evaluer("document.querySelector('.quiz .bouton-principal').click()");
 
+  // L'élève demande la publication (et accepte la vitrine) depuis « Mon site »
+  const accordRecu = new Promise((r2) => sm.once('eleve:accord', r2));
+  await nav.evaluer("document.querySelector('#bouton-mon-site').click()");
+  await nav.attendre("document.querySelector('.avant-publier')", { message: 'demande de publication' });
+  await nav.evaluer("document.querySelector('.case-accord input').click()");
+  await nav.evaluer("document.querySelectorAll('.notif').forEach(n => n.remove())");
+  await new Promise((r2) => setTimeout(r2, 500));
+  await nav.capture(path.join(CAPTURES, '2e-demande-publication.png'));
+  await nav.evaluer("[...document.querySelectorAll('.modal button')].find(b => b.textContent.includes('Demander la publication')).click()");
+  const accord = await accordRecu;
+  ok(accord.accords.publication && accord.accords.vitrine, 'l’élève demande la publication (et accepte la vitrine) : le mentor est prévenu');
+  await nav.attendre("document.querySelector('.statut-demande')", { message: 'demande en attente' });
+  await nav.evaluer("document.querySelector('.fond-modal').remove()");
+
   await mentorApi('PUT', `/api/mentor/eleves/${eleve.id}/deblocages`, { cible: 'module:js', etat: 'ouvert' });
   await nav.attendre("document.querySelector('#onglet-js')", { message: 'onglet JS apparu sans recharger' });
   ok(true, 'l’onglet JS apparaît dès que le mentor le débloque');
@@ -220,7 +234,7 @@ try {
 
   // Sauvegarde : le code est retrouvé après rechargement
   await new Promise((r2) => setTimeout(r2, 1800));
-  await nav.aller(`${BASE}/`);
+  await nav.aller(`${BASE}/atelier`);
   await nav.attendre("document.querySelector('#editeur-js .cm-content')");
   const apres = await nav.evaluer("document.querySelector('#editeur-js .cm-content').textContent");
   ok(apres.includes('après la boucle'), 'le code est retrouvé après rechargement de la page');
@@ -275,7 +289,7 @@ try {
   ok(true, 'le mentor publie le site');
   await nav.evaluer("document.querySelector('.interrupteur-vitrine input').click()");
   await nav.attendre("[...document.querySelectorAll('.notif')].some(n => n.textContent.includes('ajouté à la vitrine'))", { message: 'vitrine' });
-  ok((await (await fetch(`${BASE}/vitrine`)).text()).includes('/site/alex'), 'le site apparaît dans la vitrine une fois coché');
+  ok((await (await fetch(`${BASE}/api/vitrine`)).json()).some((x) => x.pseudo === 'alex'), 'le site apparaît dans la vitrine une fois coché');
 
   await nav.evaluer("[...document.querySelectorAll('.onglets-fiche button')].find(b => b.textContent.includes('Historique')).click()");
   await nav.attendre("document.querySelector('.version')", { message: 'liste des versions' });
@@ -313,7 +327,7 @@ try {
 
   // Côté élève : « Mon site » (QR code, visites, téléchargement)
   await fetch(`${BASE}/site/alex`, { headers: { 'User-Agent': 'Mozilla/5.0 (visiteur de test)', 'CF-Connecting-IP': '9.9.9.9' } });
-  await nav.aller(`${BASE}/`);
+  await nav.aller(`${BASE}/atelier`);
   await nav.attendre("document.querySelector('#bouton-mon-site')");
   await nav.evaluer("document.querySelector('#bouton-mon-site').click()");
   await nav.attendre("document.querySelector('canvas.qr')", { message: 'QR code' });
@@ -327,6 +341,29 @@ try {
   await nav.aller(`${BASE}/vitrine`);
   await new Promise((r2) => setTimeout(r2, 800));
   await nav.capture(path.join(CAPTURES, '14-vitrine.png'));
+
+  // ------------------------------------------------------------------------------
+  console.log('\n🧪 4. Pages publiques');
+  await nav.aller(`${BASE}/`);
+  ok((await nav.evaluer("document.querySelector('h1').textContent")).includes('ton propre site web'), 'la page d’accueil s’affiche');
+  ok((await nav.evaluer("document.querySelector('#bouton-entete').textContent")).includes('Mon atelier'), 'accueil : un élève connecté voit « Mon atelier »');
+  await nav.attendre("!document.querySelector('#section-vitrine').hidden && document.querySelector('#apercu-vitrine .carte-site')", { message: 'dernières créations sur l’accueil' });
+  ok(true, 'accueil : les dernières créations de la vitrine sont affichées');
+  await nav.aller(`${BASE}/connexion`);
+  ok((await nav.evaluer('location.pathname')) === '/atelier', 'déjà connecté : /connexion mène directement à l’atelier');
+  await nav.aller(`${BASE}/entree?erreur=code`);
+  ok((await nav.evaluer('location.pathname + location.search')).startsWith('/atelier') || (await nav.evaluer('location.pathname')) === '/connexion', 'l’ancienne adresse /entree redirige');
+  await nav.taille(390, 844);
+  for (const adresse of ['/', '/vitrine', '/mentions-legales', '/confidentialite', '/conditions']) {
+    await nav.aller(`${BASE}${adresse}`);
+    const deborde = await nav.evaluer('document.documentElement.scrollWidth > document.documentElement.clientWidth + 1');
+    const liens = await nav.evaluer("['/mentions-legales', '/confidentialite', '/conditions'].every(l => document.querySelector(`footer a[href=\"${l}\"]`))");
+    ok(!deborde && liens, `${adresse} : pas de défilement horizontal sur téléphone, liens légaux dans le pied de page`);
+  }
+  await nav.taille(1440, 900);
+  const robots = await (await fetch(`${BASE}/robots.txt`)).text();
+  const enTetes = async (u) => (await fetch(`${BASE}${u}`)).headers.get('x-robots-tag');
+  ok(robots.includes('Disallow: /') && (await enTetes('/')) === null && /noindex/.test(await enTetes('/vitrine')), 'référencement : accueil et pages légales indexables, le reste en noindex');
 
   const erreursApp = nav.journal.filter((j) => j.level === 'error' && !/about:srcdoc/.test(j.source?.context || '') && !/atelier|bouton|cookie|parent|Boucle|Cross-Origin Request Blocked/i.test(j.text));
   ok(erreursApp.length === 0, `aucune erreur JS dans l’application elle-même${erreursApp.length ? ' : ' + erreursApp.map((e) => e.text).join(' | ') : ''}`);

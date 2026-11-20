@@ -103,14 +103,17 @@ export async function lancerFirefox({ binaire = process.env.FIREFOX || 'firefox'
       await envoyer('input.performActions', { context: contexte, actions: [{ type: 'key', id: 'clavier', actions }] });
       await envoyer('input.releaseActions', { context: contexte });
     },
+    async taille(largeur, hauteur) {
+      await envoyer('browsingContext.setViewport', { context: contexte, viewport: { width: largeur, height: hauteur } });
+    },
     async touches(...valeurs) {
       const actions = [...valeurs.map((v) => ({ type: 'keyDown', value: v })), ...valeurs.reverse().map((v) => ({ type: 'keyUp', value: v }))];
       await envoyer('input.performActions', { context: contexte, actions: [{ type: 'key', id: 'clavier', actions }] });
       await envoyer('input.releaseActions', { context: contexte });
     },
-    async capture(fichier) {
+    async capture(fichier, { pleinePage = false } = {}) {
       const { writeFileSync } = await import('node:fs');
-      const r = await envoyer('browsingContext.captureScreenshot', { context: contexte });
+      const r = await envoyer('browsingContext.captureScreenshot', { context: contexte, origin: pleinePage ? 'document' : 'viewport' });
       writeFileSync(fichier, Buffer.from(r.data, 'base64'));
     },
     async fermer() {
@@ -141,6 +144,7 @@ function deserialiser(v) {
     case 'array':
       return v.value.map(deserialiser);
     case 'object':
+      if (!Array.isArray(v.value)) return `[${v.type}]`;
       return Object.fromEntries(v.value.map(([k, val]) => [typeof k === 'string' ? k : deserialiser(k), deserialiser(val)]));
     default:
       return v.value ?? `[${v.type}]`;

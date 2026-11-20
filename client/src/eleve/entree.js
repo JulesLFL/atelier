@@ -1,5 +1,8 @@
+import '@fontsource-variable/inter';
 import '../styles/base.css';
+import '../styles/eleve.css';
 import '../styles/entree.css';
+import '../styles/public.css';
 import { api } from '../commun/api.js';
 
 const champ = document.getElementById('code');
@@ -12,7 +15,7 @@ const ERREURS = {
 };
 const raison = new URLSearchParams(location.search).get('erreur');
 if (ERREURS[raison]) erreur.textContent = ERREURS[raison];
-history.replaceState(null, '', '/entree');
+history.replaceState(null, '', '/connexion');
 
 // Mise en forme automatique : K7QF29XM → K7QF-29XM
 champ.addEventListener('input', () => {
@@ -27,7 +30,7 @@ formulaire.addEventListener('submit', async (e) => {
   bouton.disabled = true;
   try {
     await api('POST', '/api/entree', { code: champ.value });
-    location.href = '/';
+    location.href = '/atelier';
   } catch (err) {
     erreur.textContent = err.message;
     bouton.disabled = false;

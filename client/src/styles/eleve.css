@@ -1149,3 +1149,46 @@
     justify-items: center;
   }
 }
+
+/* Demande de publication */
+.avant-publier {
+  background: var(--alerte-fond);
+  border: 1px solid rgb(251 191 36 / 0.45);
+  border-radius: var(--rayon-petit);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.avant-publier strong {
+  color: #fde68a;
+}
+.avant-publier ul {
+  margin: 6px 0;
+  padding-left: 1.2em;
+  color: var(--texte);
+}
+.avant-publier p {
+  margin: 0 !important;
+  font-size: 0.9rem;
+}
+.case-accord {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 12px 0;
+  color: var(--texte);
+  cursor: pointer;
+}
+.case-accord input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-vif);
+}
+.statut-demande {
+  color: var(--texte) !important;
+  font-weight: 600;
+}
+.fond-modal .modal:has(.avant-publier),
+.fond-modal .modal:has(.case-accord) {
+  width: min(560px, 100%);
+}

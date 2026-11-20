@@ -1,0 +1,8 @@
+# L'Atelier : seules la page d'accueil et les pages légales peuvent être indexées.
+# Les sites des élèves (mineurs) et les espaces privés ne le sont pas.
+User-agent: *
+Allow: /$
+Allow: /mentions-legales
+Allow: /confidentialite
+Allow: /conditions
+Disallow: /
