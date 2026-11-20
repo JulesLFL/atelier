@@ -34,6 +34,9 @@ const js5 = `${js4}\nlet compteur = 0;\nlet affichage = document.querySelector("
 const bouton = '<button id="clic">Clique-moi</button>\n<p id="reponse"></p>';
 const boutonTheme = '<button id="theme">Ambiance</button>';
 const like = '<button id="like">❤️</button>\n<p>Likes : <span id="nombre">0</span></p>';
+const tableau = '<table>\n<tr><th>Joueur</th><th>Score</th></tr>\n<tr><td>Alex</td><td>12</td></tr>\n<tr><td>Sam</td><td>9</td></tr>\n</table>';
+const sommaire = '<a href="#astuces">Aller aux astuces</a>';
+const galerie = `<section class="carte"><h2>Mes jeux</h2><p>Ceux que je préfère.</p></section>\n<div class="galerie"><img src="${IMAGE}" alt="1"><img src="${IMAGE}" alt="2"></div>`;
 
 export const ETAPES = [
   { mission: null, html: '<!-- Écris ton code ici 👇 -->', css: '', js: '' },
@@ -56,6 +59,13 @@ export const ETAPES = [
   { mission: 'js-3', html: html8(corps(contenuCarte, bouton)), css: css6, js: js3 },
   { mission: 'js-4', html: html8(corps(contenuCarte, bouton, boutonTheme)), css: cssSombre, js: js4 },
   { mission: 'js-5', html: html8(corps(contenuCarte, bouton, boutonTheme, like)), css: cssSombre, js: js5 },
+  // --- Défis bonus ⭐
+  { mission: 'html-bonus-1', html: html8(corps(contenuCarte, bouton, boutonTheme, like, tableau)), css: cssSombre, js: js5 },
+  { mission: 'html-bonus-2', html: html8(corps(sommaire, contenuCarte.replace('<h2>Mes astuces</h2>', '<h2 id="astuces">Mes astuces</h2>'), bouton, boutonTheme, like, tableau)), css: cssSombre, js: js5 },
+  { mission: 'css-bonus-1', html: html8(corps(sommaire, galerie, bouton, boutonTheme, like)), css: `${cssSombre}\n.galerie { display: flex; gap: 16px; }`, js: js5 },
+  { mission: 'css-bonus-2', html: html8(corps(sommaire, galerie, bouton, boutonTheme, like)), css: `${cssSombre}\nbody { background: linear-gradient(135deg, #1e1b4b, #7c3aed); }\n.carte { box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); }`, js: js5 },
+  { mission: 'js-bonus-1', html: html8(corps(galerie, '<button id="blague">Blague</button><p id="texte-blague"></p>')), css: cssSombre, js: `let blagues = ["Blague A", "Blague B", "Blague C"];\ndocument.querySelector("#blague").addEventListener("click", function () {\n  document.querySelector("#texte-blague").textContent = blagues[Math.floor(Math.random() * blagues.length)];\n});` },
+  { mission: 'js-bonus-2', html: html8(corps('<input id="prenom"><button id="ok">Valider</button><p id="bonjour"></p>')), css: cssSombre, js: 'document.querySelector("#ok").addEventListener("click", function () {\n  document.querySelector("#bonjour").textContent = "Salut " + document.querySelector("#prenom").value;\n});' },
 ].map((e, i, toutes) => {
   // Chaque étape hérite du CSS/JS de la précédente si elle ne les précise pas.
   const precedente = toutes.slice(0, i).reverse();

@@ -49,7 +49,7 @@ export function rendreMission(conteneur, S, actions) {
     return;
   }
 
-  const duModule = S.catalogue.missions.filter((m) => m.module === mission.module);
+  const duModule = S.catalogue.missions.filter((m) => m.module === mission.module && Boolean(m.bonus) === Boolean(mission.bonus));
   const module = S.catalogue.modules.find((m) => m.id === mission.module);
   const statut = S.etat.missions.find((m) => m.id === mission.id)?.statut;
   const indicesVus = S.progression[mission.id]?.indices || 0;
@@ -87,7 +87,9 @@ export function rendreMission(conteneur, S, actions) {
         'div',
         { class: 'mission-meta' },
         h('span', { class: `puce-module module-${mission.module}` }, `${module.emoji} ${module.titre}`),
-        h('span', { class: 'numero-mission' }, `Mission ${duModule.indexOf(mission) + 1} / ${duModule.length}`),
+        mission.bonus
+          ? h('span', { class: 'puce-bonus-mission' }, `⭐ Défi bonus ${duModule.indexOf(mission) + 1} / ${duModule.length}`)
+          : h('span', { class: 'numero-mission' }, `Mission ${duModule.indexOf(mission) + 1} / ${duModule.length}`),
         statut === 'reussie' && h('span', { class: 'puce-reussie' }, '✓ Réussie'),
       ),
       h('h2', { class: 'titre-mission' }, mission.titre),
@@ -132,37 +134,37 @@ export function rendreParcours(conteneur, S, actions) {
     conteneur,
     h('p', { class: 'intro-panneau' }, 'Toutes tes missions. Tu peux revenir sur une mission déjà réussie quand tu veux.'),
     S.catalogue.modules.map((module) => {
-      const missions = S.catalogue.missions.filter((m) => m.module === module.id);
+      const missions = S.catalogue.missions.filter((m) => m.module === module.id && !m.bonus);
+      const defis = S.catalogue.missions.filter((m) => m.module === module.id && m.bonus);
       const faites = missions.filter((m) => statuts[m.id] === 'reussie').length;
       const ouvert = S.etat.modules.find((m) => m.id === module.id)?.ouvert;
+      const etape = (m, i, bonus) => {
+        const st = statuts[m.id];
+        const icone = st === 'reussie' ? '✅' : st === 'disponible' ? (bonus ? '⭐' : '▶️') : '🔒';
+        return h(
+          'li',
+          {},
+          h(
+            'button',
+            {
+              class: `etape etape-${st}${bonus ? ' etape-bonus' : ''}${m.id === S.missionCourante ? ' courante' : ''}`,
+              disabled: st === 'verrouillee',
+              'aria-current': m.id === S.missionCourante ? 'step' : null,
+              onclick: () => actions.choisirMission(m.id),
+            },
+            h('span', { class: 'etape-icone', 'aria-hidden': 'true' }, icone),
+            h('span', { class: 'etape-numero' }, bonus ? '⭐' : `${i + 1}.`),
+            h('span', { class: 'etape-titre' }, m.titre),
+          ),
+        );
+      };
       return h(
         'section',
         { class: `parcours-module module-${module.id}${ouvert ? '' : ' ferme'}` },
         h('h3', {}, h('span', {}, `${module.emoji} ${module.titre}`), h('span', { class: 'compte' }, ouvert ? `${faites} / ${missions.length}` : '🔒 bientôt')),
-        h(
-          'ol',
-          {},
-          missions.map((m, i) => {
-            const st = statuts[m.id];
-            const icone = st === 'reussie' ? '✅' : st === 'disponible' ? '▶️' : '🔒';
-            return h(
-              'li',
-              {},
-              h(
-                'button',
-                {
-                  class: `etape etape-${st}${m.id === S.missionCourante ? ' courante' : ''}`,
-                  disabled: st === 'verrouillee',
-                  'aria-current': m.id === S.missionCourante ? 'step' : null,
-                  onclick: () => actions.choisirMission(m.id),
-                },
-                h('span', { class: 'etape-icone', 'aria-hidden': 'true' }, icone),
-                h('span', { class: 'etape-numero' }, `${i + 1}.`),
-                h('span', { class: 'etape-titre' }, m.titre),
-              ),
-            );
-          }),
-        ),
+        h('ol', {}, missions.map((m, i) => etape(m, i, false))),
+        defis.length > 0 && h('p', { class: 'titre-defis' }, '⭐ Défis bonus', h('small', {}, ' · quand le module est fini')),
+        defis.length > 0 && h('ol', { class: 'liste-defis' }, defis.map((m, i) => etape(m, i, true))),
       );
     }),
   );

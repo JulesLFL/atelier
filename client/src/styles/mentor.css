@@ -555,3 +555,175 @@ select.champ {
     min-height: 50vh;
   }
 }
+
+/* --- Nouveautés --------------------------------------------------------- */
+.alerte-systeme {
+  background: var(--alerte-fond);
+  color: #fde68a;
+  border: 1px solid rgb(251 191 36 / 0.6);
+  border-radius: var(--rayon-petit);
+  padding: 0.3em 0.75em;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.mini-bonus {
+  color: #fde68a;
+  font-size: 0.75rem;
+}
+.badges-mentor {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.badges-mentor li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
+  border: 1px solid var(--bord);
+  color: var(--texte-pale);
+}
+.badges-mentor li.obtenu {
+  color: var(--texte);
+  border-color: rgb(251 191 36 / 0.5);
+  background: rgb(251 191 36 / 0.08);
+}
+.details-quiz {
+  color: var(--texte-pale);
+}
+.statut-visites {
+  color: var(--texte-doux);
+  margin: 12px 0;
+}
+.interrupteur-vitrine a {
+  color: var(--accent-clair);
+}
+
+/* Historique */
+.entete-historique {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.grille-historique {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 460px;
+}
+.liste-versions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.liste-versions .vide {
+  color: var(--texte-doux);
+}
+.version {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: var(--surface-2);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon-petit);
+  padding: 8px 10px;
+}
+.version:hover {
+  border-color: var(--bord-fort);
+}
+.version.choisie {
+  border-color: var(--accent-vif);
+  box-shadow: inset 3px 0 0 var(--accent-vif);
+}
+.version span {
+  font-size: 0.88rem;
+}
+.version small {
+  color: var(--texte-pale);
+}
+.zone-apercu-version {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.zone-apercu-version .ligne {
+  justify-content: space-between;
+}
+.titre-version {
+  margin: 0;
+  color: var(--texte-doux);
+}
+.zone-apercu-version .cadre-apercu {
+  flex: 1;
+  min-height: 380px;
+  border-radius: var(--rayon);
+  overflow: hidden;
+  border: 1px solid var(--bord);
+}
+
+/* Notes */
+.zone-notes {
+  display: block;
+  min-height: 55vh;
+  resize: vertical;
+  font: 0.95rem/1.6 var(--police-code);
+  margin-top: 6px;
+}
+.etat-notes {
+  color: var(--texte-pale);
+  font-size: 0.85rem;
+}
+
+/* Système */
+.fond-modal .modal:has(.etat-systeme) {
+  width: min(680px, 100%);
+}
+.etat-systeme {
+  padding-left: 1.1em;
+  margin: 0 0 12px;
+  color: var(--texte-doux);
+  display: grid;
+  gap: 4px;
+}
+.erreur-systeme {
+  color: #fecaca;
+}
+.table-sauvegardes {
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+.aide-restauration {
+  margin-top: 14px;
+  color: var(--texte-doux);
+}
+.aide-restauration summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.commande {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.commande code {
+  flex: 1;
+  overflow-wrap: anywhere;
+  padding: 0.45em 0.6em;
+}
+@media (max-width: 900px) {
+  .grille-historique {
+    grid-template-columns: 1fr;
+  }
+}

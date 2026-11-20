@@ -12,6 +12,9 @@ import { notifier, confirmer, fenetre } from '../commun/notifications.js';
 import { creerConsole } from '../commun/console.js';
 import { celebrer } from './celebration.js';
 import { rendreMission, rendreParcours, rendreMemo, majChecklist, annoncerDeblocage } from './panneaux.js';
+import { annoncerBadges, ouvrirBadges, lancerQuiz, ouvrirMonSite } from './extras.js';
+import { compterProgression } from '@partage/regles.js';
+import { verifierHtml } from '@partage/verif-html.js';
 
 const LANGAGES = ['html', 'css', 'js'];
 const FICHIERS = { html: 'index.html', css: 'style.css', js: 'script.js' };
@@ -32,6 +35,9 @@ const S = {
   ongletActif: 'html',
   messages: [],
   publication: null,
+  badges: [],
+  visites: 0,
+  ecran: prefs.lire('ecran', 'ordinateur'),
 };
 
 let editeurs = {};
@@ -40,6 +46,9 @@ let apercu;
 let console_;
 let modifieNonEnvoye = false;
 let succesEnCours = false;
+// Pour le badge « Chasseur de bugs » : une erreur JS au rechargement précédent, plus aucune maintenant.
+let erreurAvant = false;
+let erreurMaintenant = false;
 
 // --------------------------------------------------------------------------
 //  Démarrage
@@ -60,8 +69,16 @@ async function demarrer() {
   appliquerTaillePolice(prefs.lire('taillePolice', 16));
   console_ = creerConsole(document.getElementById('console'));
   apercu = creerApercu(document.getElementById('cadre-apercu'), {
-    surMessage: (msg, infos) => console_.recevoir(msg, infos),
-    surRechargement: () => console_.effacer(),
+    surMessage: (msg, infos) => {
+      if (msg.type === 'erreur') erreurMaintenant = true;
+      if (msg.type === 'pret') setTimeout(() => erreurAvant && !erreurMaintenant && socket?.emit('badge:evenement', 'chasseur-de-bugs'), 800);
+      console_.recevoir(msg, infos);
+    },
+    surRechargement: () => {
+      erreurAvant = erreurMaintenant;
+      erreurMaintenant = false;
+      console_.effacer();
+    },
   });
 
   creerEditeurs(donnees.code);
@@ -85,6 +102,8 @@ function appliquerEtat(donnees, { silencieux = false } = {}) {
   S.etat = donnees.etat;
   S.progression = donnees.progression || {};
   S.publication = donnees.publication;
+  S.badges = donnees.badges || S.badges;
+  S.visites = donnees.visites ?? S.visites;
   if (donnees.missionCourante !== undefined && donnees.missionCourante !== S.missionCourante) {
     S.missionCourante = donnees.missionCourante;
     S.resultats = null;
@@ -125,6 +144,9 @@ function codeActuel() {
 function actualiser({ sauvegarder = true } = {}) {
   const code = codeActuel();
   apercu.mettreAJour(code, S.etat.onglets);
+  const remarques = verifierHtml(code.html);
+  console_.remarquesHtml(remarques);
+  editeurs.html.remarques(remarques);
   if (sauvegarder) envoyerCode(code);
   verifierMission(code);
 }
@@ -195,33 +217,49 @@ function missionReussie(mission) {
     S.missionCourante = mission.id;
     rendreTout();
     feterReussite(mission);
+    // Les badges arrivent juste après la célébration de la mission.
+    setTimeout(() => annoncerBadges(reponse.badges), 1200);
   });
 }
 
 function suivante(missionId) {
   const ordre = S.catalogue.missions.map((m) => m.id);
   const statuts = Object.fromEntries(S.etat.missions.map((m) => [m.id, m.statut]));
-  // D'abord une mission disponible après celle-ci, sinon n'importe quelle mission disponible.
-  const apres = ordre.slice(ordre.indexOf(missionId) + 1).find((id) => statuts[id] === 'disponible');
-  return apres || ordre.find((id) => id !== missionId && statuts[id] === 'disponible') || null;
+  const bonus = new Set(S.catalogue.missions.filter((m) => m.bonus).map((m) => m.id));
+  const dispo = (id) => id !== missionId && statuts[id] === 'disponible';
+  // D'abord une mission obligatoire après celle-ci, puis n'importe quelle obligatoire, puis un défi bonus.
+  return (
+    ordre.slice(ordre.indexOf(missionId) + 1).find((id) => dispo(id) && !bonus.has(id)) ||
+    ordre.find((id) => dispo(id) && !bonus.has(id)) ||
+    ordre.find((id) => dispo(id)) ||
+    null
+  );
 }
 
 function feterReussite(mission) {
-  const duModule = S.catalogue.missions.filter((m) => m.module === mission.module);
+  const duModule = S.catalogue.missions.filter((m) => m.module === mission.module && !m.bonus);
   const statuts = Object.fromEntries(S.etat.missions.map((m) => [m.id, m.statut]));
-  const moduleFini = duModule.every((m) => statuts[m.id] === 'reussie');
+  const moduleFini = !mission.bonus && duModule.every((m) => statuts[m.id] === 'reussie');
   const module = S.catalogue.modules.find((m) => m.id === mission.module);
   const idSuivante = suivante(mission.id);
-  const toutFini = S.etat.missions.every((m) => m.statut === 'reussie');
+  const suivanteEstBonus = S.catalogue.missions.find((m) => m.id === idSuivante)?.bonus;
+  const { faites, total } = compterProgression(S.etat);
+  const toutFini = faites === total;
 
-  if (toutFini) {
+  if (mission.bonus) {
+    celebrer({ grand: true, titre: 'Défi bonus réussi ! ⭐', sousTitre: 'Là, tu dépasses le programme. Chapeau. 🎩', suivant: idSuivante && { texte: suivanteEstBonus ? '⭐ Défi suivant →' : 'Mission suivante →', action: () => choisirMission(idSuivante) } });
+  } else if (toutFini && !idSuivante) {
     celebrer({ grand: true, titre: 'Toutes les missions sont réussies !', sousTitre: 'Tu as construit ton site de A à Z. Respect total. 🏆 Continue-le en Bac à sable !' });
   } else if (moduleFini) {
     celebrer({
       grand: true,
       titre: `Module ${module.titre} terminé !`,
-      sousTitre: idSuivante ? 'La suite t’attend. 🚀' : 'Ton mentor va bientôt te débloquer la suite. En attendant, amuse-toi en Bac à sable 🧪',
-      suivant: idSuivante ? { texte: 'Mission suivante →', action: () => choisirMission(idSuivante) } : { texte: '🧪 Bac à sable', action: () => changerMode('libre') },
+      sousTitre: suivanteEstBonus
+        ? 'Deux défis bonus ⭐ viennent de s’ouvrir, pour ceux qui en veulent encore. 😏'
+        : idSuivante
+          ? 'La suite t’attend. 🚀'
+          : 'Ton mentor va bientôt te débloquer la suite. En attendant, amuse-toi en Bac à sable 🧪',
+      suivant: idSuivante ? { texte: suivanteEstBonus ? '⭐ Voir les défis →' : 'Mission suivante →', action: () => choisirMission(idSuivante) } : { texte: '🧪 Bac à sable', action: () => changerMode('libre') },
     });
   } else {
     celebrer({ titre: 'Mission réussie !', suivant: idSuivante && { texte: 'Mission suivante →', action: () => choisirMission(idSuivante) } });
@@ -274,13 +312,13 @@ const actionsPanneaux = {
 };
 
 function rendreTout() {
-  const total = S.etat.missions.length;
-  const faites = S.etat.missions.filter((m) => m.statut === 'reussie').length;
+  const { faites, total, bonusFaits, bonusTotal } = compterProgression(S.etat);
   document.getElementById('compteur-missions').textContent = `${faites} / ${total}`;
   document.getElementById('jauge').style.width = `${total ? (faites / total) * 100 : 0}%`;
-  const lien = document.getElementById('lien-site');
-  lien.hidden = !S.publication;
-  if (S.publication) lien.href = S.publication.url;
+  document.getElementById('compteur-bonus').textContent = bonusFaits ? `⭐ ${bonusFaits}/${bonusTotal}` : '';
+  document.getElementById('compteur-badges').textContent = S.badges.length;
+  document.getElementById('cadre-apercu').classList.toggle('ecran-telephone', S.ecran === 'telephone');
+  document.querySelectorAll('.bascule-ecran [data-ecran]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.ecran === S.ecran)));
 
   document.body.dataset.mode = S.mode;
   document.querySelectorAll('.bascule-mode [data-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === S.mode)));
@@ -304,6 +342,7 @@ function choisirPanneau(nom) {
 }
 
 function changerMode(mode) {
+  if (mode === 'libre' && S.mode !== 'libre') socket?.emit('badge:evenement', 'explorateur');
   S.mode = mode;
   prefs.ecrire('mode', mode);
   if (mode === 'missions') S.panneau = 'mission';
@@ -331,6 +370,15 @@ function brancherInterface() {
   document.getElementById('bouton-retablir').addEventListener('click', () => editeurs[S.ongletActif].retablir());
   document.getElementById('bouton-reinitialiser').addEventListener('click', reinitialiserMission);
   document.getElementById('bouton-messages').addEventListener('click', ouvrirMessages);
+  document.getElementById('bouton-badges').addEventListener('click', () => ouvrirBadges(S.catalogue.badges, S.badges));
+  document.getElementById('bouton-mon-site').addEventListener('click', () => ouvrirMonSite({ publication: S.publication, visites: S.visites, pseudo: S.eleve.pseudo }));
+  document.querySelectorAll('.bascule-ecran [data-ecran]').forEach((b) =>
+    b.addEventListener('click', () => {
+      S.ecran = b.dataset.ecran;
+      prefs.ecrire('ecran', S.ecran);
+      rendreTout();
+    }),
+  );
 
   // Sauvegarde de secours quand on ferme l'onglet.
   window.addEventListener('pagehide', () => {
@@ -411,6 +459,10 @@ function envoyerCode(code) {
   });
 }
 
+function ouvrirQuiz(quiz, options) {
+  lancerQuiz(quiz, (reponses) => new Promise((ok) => socket.emit('quiz:repondre', { id: quiz.id, reponses }, ok)), options);
+}
+
 function sessionTerminee() {
   socket?.disconnect();
   document.body.append(
@@ -424,10 +476,16 @@ function sessionTerminee() {
 
 function connecterTempsReel() {
   socket = io('/eleve', { transports: ['websocket', 'polling'] });
+  let quizDemande = false;
   socket.on('connect', () => {
     // Après une coupure, on renvoie le code s'il a changé entre-temps.
     if (modifieNonEnvoye) envoyerCode(codeActuel());
     else majSauvegarde('ok');
+    // Quiz d'échauffement : le serveur décide s'il en propose un (au plus toutes les 6 h).
+    if (!quizDemande) {
+      quizDemande = true;
+      setTimeout(() => socket.emit('quiz:demander', (quiz) => quiz && ouvrirQuiz(quiz)), 1500);
+    }
   });
   socket.on('disconnect', (raison) => {
     if (raison === 'io server disconnect') return sessionTerminee();
@@ -449,6 +507,25 @@ function connecterTempsReel() {
   socket.on('mission:validee', ({ missionId }) => {
     const mission = S.catalogue.missions.find((m) => m.id === missionId);
     if (mission) notifier({ icone: '✅', titre: 'Validée par ton mentor', texte: `La mission « ${mission.titre} » est validée !`, type: 'succes' });
+  });
+  socket.on('badges:nouveaux', (nouveaux) => {
+    for (const b of nouveaux) if (!S.badges.some((x) => x.badge === b.id)) S.badges.push({ badge: b.id, obtenu_le: Date.now() });
+    rendreTout();
+    annoncerBadges(nouveaux);
+  });
+  socket.on('quiz:lancer', (quiz) => ouvrirQuiz(quiz, { parMentor: true }));
+  // Le mentor montre une ligne : on ouvre le bon onglet et on la surligne.
+  socket.on('pointer', ({ onglet, ligne } = {}) => {
+    if (!LANGAGES.includes(onglet) || !S.etat.onglets.includes(onglet) || !Number.isInteger(ligne)) return;
+    choisirOnglet(onglet);
+    editeurs[onglet].montrerLigne(ligne);
+    notifier({ icone: '👉', texte: `Ton mentor te montre la ligne ${ligne} de ton ${onglet.toUpperCase()}.`, duree: 5000 });
+  });
+  // Le mentor a restauré une ancienne version du site.
+  socket.on('code:remplacer', ({ code } = {}) => {
+    if (!code) return;
+    for (const l of LANGAGES) if (typeof code[l] === 'string') editeurs[l].remplacer(code[l]);
+    notifier({ icone: '🕓', titre: 'Ancienne version restaurée', texte: 'Ton mentor a remis une version précédente de ton site. (Ctrl+Z pour annuler)', duree: 10000 });
   });
   socket.on('message', (m) => {
     S.messages.push(m);

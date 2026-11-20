@@ -8,7 +8,7 @@ import { RACINE } from './config.js';
 export const TYPES_VERIFICATION = ['element', 'attribut', 'style', 'regleCss', 'console', 'clic', 'script'];
 export const CATEGORIES_MEMO = ['lexique', 'balise', 'propriete', 'js'];
 
-export function controlerCatalogue({ modules, missions }) {
+export function controlerCatalogue({ modules, missions, quiz = {} }) {
   const erreurs = [];
   if (!Array.isArray(modules) || !modules.length) erreurs.push('« modules » doit être une liste non vide.');
   if (!Array.isArray(missions)) erreurs.push('« missions » doit être une liste.');
@@ -33,9 +33,23 @@ export function controlerCatalogue({ modules, missions }) {
       if (typeof m[champ] !== 'string' || !m[champ].trim()) erreurs.push(`${ou} : « ${champ} » manquant.`);
     }
     if (m.indices && (!Array.isArray(m.indices) || m.indices.length > 2)) erreurs.push(`${ou} : « indices » = liste de 2 indices maximum.`);
+    if (m.bonus !== undefined && typeof m.bonus !== 'boolean') erreurs.push(`${ou} : « bonus » doit valoir true ou false.`);
     if (!Array.isArray(m.verifications) || !m.verifications.length) erreurs.push(`${ou} : il faut au moins une vérification.`);
     else controlerVerifications(m.verifications, ou, erreurs);
     controlerMemo(m.memo, ou, erreurs);
+  }
+  for (const [id, questions] of Object.entries(quiz)) {
+    if (!idsMissions.has(id)) erreurs.push(`quiz : la mission « ${id} » n’existe pas.`);
+    if (!Array.isArray(questions)) {
+      erreurs.push(`quiz « ${id} » : il faut une liste de questions.`);
+      continue;
+    }
+    questions.forEach((q, i) => {
+      const ou = `quiz « ${id} », question ${i + 1}`;
+      if (typeof q.question !== 'string' || !q.question.trim()) erreurs.push(`${ou} : « question » manquante.`);
+      if (!Array.isArray(q.choix) || q.choix.length < 2 || q.choix.length > 4 || q.choix.some((c) => typeof c !== 'string')) erreurs.push(`${ou} : « choix » = 2 à 4 textes.`);
+      else if (!Number.isInteger(q.reponse) || q.reponse < 0 || q.reponse >= q.choix.length) erreurs.push(`${ou} : « reponse » doit être la position d’un des choix (0 = le premier).`);
+    });
   }
   if (erreurs.length) throw new Error('Problème dans contenu/missions.js :\n  - ' + erreurs.join('\n  - '));
 }
@@ -73,9 +87,9 @@ function serialiserVerifications(liste) {
 
 export async function chargerCatalogue(fichier = path.join(RACINE, 'contenu', 'missions.js')) {
   const mod = await import(pathToFileURL(fichier).href + `?t=${Date.now()}`);
-  const catalogue = { modules: mod.modules, missions: mod.missions };
+  const catalogue = { modules: mod.modules, missions: mod.missions, quiz: mod.quiz || {} };
   controlerCatalogue(catalogue);
-  // Version envoyée au navigateur (JSON).
+  // Version envoyée au navigateur (JSON). Le quiz n'y est PAS : ses réponses restent sur le serveur.
   catalogue.public = {
     modules: catalogue.modules,
     missions: catalogue.missions.map((m) => ({ ...m, verifications: serialiserVerifications(m.verifications) })),

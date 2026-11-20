@@ -7,7 +7,7 @@ import { validerCode, missionExiste } from './validation.js';
 
 const INTERVALLE_ACTIVITE_S = 30;
 
-export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, config }) {
+export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, config, discord }) {
   const hoteAutorise = new URL(config.urlPublique).host;
   const io = new Server(serveurHttp, {
     serveClient: false,
@@ -28,6 +28,8 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
   const eleves = io.of('/eleve');
   const mentors = io.of('/mentor');
   const connexions = new Map(); // eleveId -> nombre d'onglets ouverts
+  const derniereAlerteConnexion = new Map(); // eleveId -> date de la dernière alerte Discord « connecté seul »
+  const ALERTE_CONNEXION_MS = 3 * 3600 * 1000;
 
   const estEnLigne = (id) => (connexions.get(id) || 0) > 0;
   const versEleve = (id, evt, donnees) => eleves.to(`eleve:${id}`).emit(evt, donnees);
@@ -48,6 +50,17 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
     socket.join(`eleve:${id}`);
     connexions.set(id, (connexions.get(id) || 0) + 1);
     bdd.noterPassage(id);
+    service.versionDeSeance(id);
+    const annoncerBadges = (nouveaux) => {
+      if (!nouveaux?.length) return;
+      versEleve(id, 'badges:nouveaux', nouveaux);
+      etatPourMentor(id);
+    };
+    // L'élève vient coder alors qu'aucun mentor n'est connecté : petite alerte Discord (au plus toutes les 3 h).
+    if (mentors.sockets.size === 0 && Date.now() - (derniereAlerteConnexion.get(id) || 0) > ALERTE_CONNEXION_MS) {
+      derniereAlerteConnexion.set(id, Date.now());
+      discord?.envoyer(`💻 **${bdd.eleveParId(id)?.pseudo}** s’est connecté à l’Atelier pour coder tout seul.`);
+    }
     presence(id);
     let derniereActivite = 0;
     const repondre = (rappel, valeur) => typeof rappel === 'function' && rappel(valeur);
@@ -82,9 +95,29 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
     socket.on('mission:reussie', (missionId, rappel) => {
       if (!missionExiste(catalogue, missionId)) return repondre(rappel, { ok: false });
       const ok = service.reussirMission(id, missionId);
-      repondre(rappel, { ok, etat: service.etatEleve(id) });
+      const nouveaux = ok ? service.attribuerBadges(id) : [];
+      repondre(rappel, { ok, etat: service.etatEleve(id), badges: nouveaux });
       if (ok) etatPourMentor(id);
     });
+
+    // Badges d'exploration signalés par le navigateur (liste fermée, côté serveur).
+    socket.on('badge:evenement', (badge) => {
+      if (typeof badge === 'string') annoncerBadges(service.badgeSignale(id, badge));
+    });
+
+    // Quiz d'échauffement
+    socket.on('quiz:demander', (rappel) => repondre(rappel, service.proposerQuiz(id)));
+    socket.on('quiz:repondre', (donnees, rappel) => {
+      const resultat = service.repondreQuiz(id, donnees?.id, donnees?.reponses);
+      repondre(rappel, resultat);
+      if (!resultat) return;
+      versSuivi(id, 'eleve:quiz', { score: resultat.score, total: resultat.total });
+      annoncerBadges(service.attribuerBadges(id));
+      etatPourMentor(id);
+    });
+
+    // Badges liés aux séances (« Assidu »…) : vérifiés à chaque connexion.
+    setTimeout(() => annoncerBadges(service.attribuerBadges(id)), 2000);
 
     socket.on('message:lu', (messageId) => {
       if (Number.isInteger(messageId)) bdd.marquerLu(id, messageId);
@@ -119,6 +152,14 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
       if (!fiche) return typeof rappel === 'function' && rappel({ ok: false });
       socket.join(`suivi:${eleveId}`);
       if (typeof rappel === 'function') rappel({ ok: true, fiche: { ...fiche, enLigne: estEnLigne(eleveId) } });
+    });
+
+    // Le mentor montre une ligne du code à l'élève (seulement l'élève qu'il suit).
+    socket.on('pointer', (donnees) => {
+      const { eleveId, onglet, ligne } = donnees || {};
+      if (!Number.isInteger(eleveId) || !socket.rooms.has(`suivi:${eleveId}`)) return;
+      if (!['html', 'css', 'js'].includes(onglet) || !Number.isInteger(ligne) || ligne < 1 || ligne > 100000) return;
+      versEleve(eleveId, 'pointer', { onglet, ligne });
     });
   });
 

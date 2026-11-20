@@ -1,5 +1,5 @@
 // Mini-console sous l'aperçu : console.log de l'élève et erreurs expliquées en français.
-import { h, vider, prefs } from './dom.js';
+import { h, prefs } from './dom.js';
 import { traduireErreur } from './erreurs-fr.js';
 import { localiser } from './apercu.js';
 
@@ -22,9 +22,27 @@ export function creerConsole(bloc, { cleOuverture = 'consoleOuverte' } = {}) {
   bascule.addEventListener('click', () => ouvrir(bloc.classList.contains('repliee')));
   bloc.querySelector('.vider-console').addEventListener('click', () => effacer());
 
+  let nbHtml = 0;
   function majCompteur() {
-    compteur.hidden = nbErreurs === 0;
-    compteur.textContent = `${nbErreurs} erreur${nbErreurs > 1 ? 's' : ''}`;
+    const total = nbErreurs + nbHtml;
+    compteur.hidden = total === 0;
+    compteur.textContent = `${total} erreur${total > 1 ? 's' : ''}`;
+  }
+
+  /** Remarques du vérificateur HTML : toujours en haut de la console, remplacées à chaque frappe. */
+  function remarquesHtml(liste) {
+    lignes.querySelectorAll('.ligne-html').forEach((n) => n.remove());
+    nbHtml = liste.filter((r) => r.gravite === 'erreur').length;
+    majCompteur();
+    const noeuds = liste.map((r) =>
+      h(
+        'div',
+        { class: `ligne-console ligne-html ${r.gravite === 'erreur' ? 'niveau-error' : 'niveau-warn'}` },
+        h('span', { class: 'icone-console', 'aria-hidden': 'true' }, r.gravite === 'erreur' ? '🧱' : '💡'),
+        h('div', { class: 'texte-console erreur-expliquee' }, h('strong', {}, r.gravite === 'erreur' ? 'HTML' : 'Conseil HTML'), h('span', { class: 'lieu-erreur' }, ` ligne ${r.ligne}`), h('p', {}, r.message)),
+      ),
+    );
+    lignes.prepend(...noeuds);
   }
 
   function ajouter(noeud) {
@@ -35,7 +53,8 @@ export function creerConsole(bloc, { cleOuverture = 'consoleOuverte' } = {}) {
   }
 
   function effacer() {
-    vider(lignes);
+    // Les remarques HTML restent : elles ne dépendent pas de l'exécution de la page.
+    [...lignes.children].forEach((n) => n.classList.contains('ligne-html') || n.remove());
     nbErreurs = 0;
     majCompteur();
   }
@@ -86,5 +105,5 @@ export function creerConsole(bloc, { cleOuverture = 'consoleOuverte' } = {}) {
     }
   }
 
-  return { recevoir, effacer };
+  return { recevoir, effacer, remarquesHtml, aDesErreursJs: () => nbErreurs > 0 };
 }

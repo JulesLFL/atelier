@@ -369,3 +369,9 @@ code {
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes ligneMontree {
+  50% {
+    background-color: rgb(251 191 36 / 0.45);
+  }
+}

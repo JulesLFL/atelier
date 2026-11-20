@@ -4,10 +4,12 @@ Un mini site pour apprendre le développement web **en construisant son propre s
 L'élève écrit du HTML, puis du CSS, puis du JavaScript, et voit sa page se construire en direct.
 Le mentor suit tout en temps réel, débloque les étapes et publie le site final.
 
-- **Mode Missions** : 19 petites missions guidées (8 HTML, 6 CSS, 5 JS), avec checklist automatique, indices et célébration.
+- **Mode Missions** : 19 petites missions guidées (8 HTML, 6 CSS, 5 JS) + 6 **défis bonus ⭐**, avec checklist automatique, indices et célébration.
 - **Mode Bac à sable** : l'élève construit ce qu'il veut, avec un mémo (lexique, balises, propriétés, bouts de JS) copiable en un clic.
-- **Panneau mentor** (`/mentor`) : déblocages, vue en direct du code et de l'aperçu, messages et indices, progression, publication.
-- **Sites publiés** : `/site/<pseudo>`, une copie figée que l'élève peut montrer à ses proches.
+- **Aides pour l'élève** : erreurs JS **et HTML** expliquées en français (et soulignées dans l'éditeur), aperçu ordinateur ou 📱 téléphone, quiz d'échauffement, 15 badges.
+- **Panneau mentor** (`/mentor`) : déblocages, vue en direct (code, aperçu, console, checklist), **montrer une ligne** à l'élève d'un clic, messages et indices, quiz, progression, **historique des versions** restaurable, **notes privées**, publication.
+- **Sites publiés** : `/site/<pseudo>`, une copie figée avec QR code, compteur de visites anonyme, téléchargement en .zip, et **vitrine** publique facultative (`/vitrine`).
+- **Sauvegardes** quotidiennes chiffrées, vérifiées et tournantes, plus des **alertes Discord** (optionnelles).
 
 ---
 
@@ -15,12 +17,14 @@ Le mentor suit tout en temps réel, débloque les étapes et publie le site fina
 
 1. [Lancer en local](#1-lancer-en-local)
 2. [Déployer sur le NAS TrueNAS Scale](#2-déployer-sur-le-nas-truenas-scale)
-3. [Cloudflare Tunnel (latelier.juleslfl.dev)](#3-cloudflare-tunnel-latelierjuleslfldev)
-4. [Ajouter ou modifier une mission](#4-ajouter-ou-modifier-une-mission)
-5. [Utilisation pendant une séance](#5-utilisation-pendant-une-séance)
-6. [Sécurité et données](#6-sécurité-et-données)
-7. [Organisation du code](#7-organisation-du-code)
-8. [Publier le code sur GitHub](#8-publier-le-code-sur-github)
+3. [Sauvegardes et restauration](#3-sauvegardes-et-restauration)
+4. [Cloudflare Tunnel (latelier.juleslfl.dev)](#4-cloudflare-tunnel-latelierjuleslfldev)
+5. [Alertes Discord](#5-alertes-discord)
+6. [Ajouter ou modifier une mission](#6-ajouter-ou-modifier-une-mission)
+7. [Utilisation pendant une séance](#7-utilisation-pendant-une-séance)
+8. [Sécurité et données](#8-sécurité-et-données)
+9. [Organisation du code](#9-organisation-du-code)
+10. [Publier le code sur GitHub](#10-publier-le-code-sur-github)
 
 ---
 
@@ -58,17 +62,17 @@ Dans le panneau mentor, clique sur **« + Nouveau »**, choisis un pseudo : tu o
 ### Tests
 
 ```bash
-npm test                                 # serveur, règles de déblocage, missions, erreurs en français (~3 s)
+npm test                                 # serveur, sauvegardes, règles, missions, vérificateur HTML, erreurs en français (~5 s)
 npm run build && npm run test:navigateur # tests dans un vrai navigateur (~1 min)
 ```
 
 `test:navigateur` pilote **le Firefox déjà installé** sur ta machine, en mode invisible (rien n'est téléchargé). Il vérifie :
 
-- pour chacune des 19 missions : la solution de référence la réussit, l'étape d'avant ne la réussit pas, et les erreurs classiques ne la valident pas ;
-- le parcours de l'élève : ouverture du lien → première balise → mission réussie (en environ 4 secondes) ;
+- pour chacune des 25 missions et défis : la solution de référence la réussit, l'étape d'avant ne la réussit pas, et les erreurs classiques ne la valident pas ;
+- le parcours de l'élève : ouverture du lien → première balise → mission réussie (en environ 4 secondes), badges, quiz, aperçu téléphone, « Mon site » ;
 - l'isolation de l'aperçu : pas d'accès aux cookies, à l'application, à l'API ;
-- les erreurs JS traduites en français, la protection contre les boucles infinies ;
-- le panneau mentor : vue en direct, déblocage, publication.
+- les erreurs JS et HTML expliquées en français, la protection contre les boucles infinies ;
+- le panneau mentor : vue en direct, ligne montrée, déblocage, publication, vitrine, historique, notes, sauvegarde chiffrée.
 
 Les captures d'écran sont enregistrées dans `tests/navigateur/captures/`.
 
@@ -92,11 +96,15 @@ La base SQLite est dans un **volume persistant** (`atelier-donnees`) : elle surv
    | `SESSION_SECRET` | 64 caractères aléatoires (`openssl rand -hex 32`) |
    | `PUBLIC_URL` | `https://latelier.juleslfl.dev` |
    | `PORT` | `30085` (accès depuis la maison : `http://IP-DU-NAS:30085`) |
+   | `SAUVEGARDE_CLE` | **conseillé** : `openssl rand -base64 32` (voir [Sauvegardes](#3-sauvegardes-et-restauration)) |
+   | `CHEMIN_SAUVEGARDES` | *(facultatif)* un dossier du NAS pour les sauvegardes, ex. `/mnt/NAS/sauvegardes/atelier` |
+   | `DISCORD_WEBHOOK_URL` | *(facultatif)* voir [Alertes Discord](#5-alertes-discord) |
 
-5. **Deploy the stack**. Le premier build prend 2 à 3 minutes.
+5. **Deploy the stack**. Le premier build prend quelques minutes (le bouton tourne pendant ce temps, c'est normal).
 6. Vérifie : `http://IP-DU-NAS:30085/mentor`.
 
-**Mettre à jour** après un `git push` : stack → **Pull and redeploy** (coche « Re-pull image and redeploy »).
+**Mettre à jour** après un `git push` : stack → **Pull and redeploy** (coche « Re-pull image and redeploy »). L'image est toujours construite sur place (`pull_policy: build`), jamais téléchargée.
+Si la structure de la base change dans une nouvelle version, une **sauvegarde chiffrée est faite automatiquement avant** la migration ; si elle échoue, le site refuse de démarrer plutôt que de toucher à la base.
 
 ### Option B : en SSH sur le NAS
 
@@ -121,21 +129,74 @@ Dans le volume Docker `atelier_atelier-donnees` (fichier `atelier.db`). Pour uti
 
 et donne le dossier à l'utilisateur du conteneur (UID 1000) : `chown -R 1000:1000 /mnt/tank/apps/atelier`.
 
-**Sauvegarde** : le plus simple est un snapshot du dataset. Sinon :
-
-```bash
-docker compose stop atelier
-docker run --rm -v atelier_atelier-donnees:/data -v "$PWD":/sauvegarde alpine cp /data/atelier.db /sauvegarde/atelier-$(date +%F).db
-docker compose start atelier
-```
+Les **sauvegardes** sont dans un autre volume (`atelier_atelier-sauvegardes`), ou dans `CHEMIN_SAUVEGARDES` : voir la section suivante.
 
 ### Durcissement du conteneur (déjà configuré)
 
-L'application tourne avec un utilisateur non-root, sur un système de fichiers en lecture seule (sauf `/data`), avec `no-new-privileges` et un *healthcheck* sur `/api/sante`. Un `docker stop` enregistre le code en cours avant de quitter.
+L'application tourne avec un utilisateur non-root, sur un système de fichiers en lecture seule (sauf `/data` et `/sauvegardes`, en droits `700`), avec `no-new-privileges` et un *healthcheck* sur `/api/sante`. Un `docker stop` enregistre le code en cours avant de quitter.
 
 ---
 
-## 3. Cloudflare Tunnel (latelier.juleslfl.dev)
+## 3. Sauvegardes et restauration
+
+Une sauvegarde **automatique par jour** (14 gardées), plus celles que tu lances depuis le panneau mentor (**⚙️ Système → Sauvegarder maintenant**).
+
+### Ce qui est fait à chaque sauvegarde
+
+1. **Copie cohérente** de la base en mémoire, sans arrêter le site.
+2. **Contrôle d'intégrité** SQLite de la copie (une base abîmée n'est jamais sauvegardée comme si de rien n'était).
+3. **Chiffrement AES-256-GCM** si `SAUVEGARDE_CLE` est définie : clé dérivée par *scrypt*, sel et IV aléatoires, toute modification du fichier est détectée au déchiffrement.
+4. **Relecture** : le fichier chiffré est aussitôt déchiffré en mémoire et comparé à l'original (empreinte SHA-256).
+5. **Écriture atomique** (fichier temporaire, `fsync`, renommage), droits `600`, dossier `700`, et un manifeste `.json` (date, empreintes, nombre d'élèves).
+6. **Rotation** : 14 automatiques, 10 manuelles, 5 « avant migration », 5 « avant restauration ».
+
+Il est **impossible de télécharger ou de restaurer une sauvegarde depuis le web** : c'est volontaire. Le panneau affiche seulement leur état, et une alerte (⚠️ en haut à droite, et sur Discord) si une sauvegarde échoue ou si elles ne sont pas chiffrées.
+
+### La clé de chiffrement
+
+```bash
+openssl rand -base64 32
+```
+
+Mets le résultat dans `SAUVEGARDE_CLE` **et dans ton gestionnaire de mots de passe**. Sans cette clé, les sauvegardes chiffrées sont illisibles, même pour toi. Si tu la changes, les anciennes sauvegardes restent lisibles uniquement avec l'ancienne clé.
+
+### Où les ranger
+
+Idéalement **ailleurs que la base** : un dataset du NAS, avec ses propres snapshots, et pourquoi pas une tâche de réplication TrueNAS vers un disque externe.
+
+```bash
+mkdir -p /mnt/NAS/sauvegardes/atelier && chown -R 1000:1000 /mnt/NAS/sauvegardes/atelier && chmod 700 /mnt/NAS/sauvegardes/atelier
+```
+
+puis `CHEMIN_SAUVEGARDES=/mnt/NAS/sauvegardes/atelier` dans les variables de la stack.
+
+### Restaurer (site arrêté)
+
+Dans TrueNAS › **System** › **Shell** (ces commandes marchent que la stack ait été créée par Portainer ou en ligne de commande) :
+
+```bash
+# 1. Voir les sauvegardes (site en marche)
+docker exec atelier node serveur/outils/sauvegardes.js liste
+
+# 2. Arrêter le site
+docker stop atelier
+
+# 3. Restaurer : on reprend les volumes du conteneur et sa clé, sans la retaper
+CLE=$(docker inspect atelier --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^SAUVEGARDE_CLE=//p')
+docker run --rm --volumes-from atelier -e SAUVEGARDE_CLE="$CLE" atelier:latest \
+  node serveur/outils/sauvegardes.js restaurer <nom-du-fichier>
+
+# 4. Relancer
+docker start atelier
+```
+
+Pour seulement tester qu'une sauvegarde est lisible : `docker exec atelier node serveur/outils/sauvegardes.js verifier <nom>`.
+
+L'outil refuse de restaurer si le site tourne encore. Il vérifie la sauvegarde (déchiffrement + intégrité), **met la base actuelle de côté** (sauvegarde « avant-restauration ») puis remplace la base. Rien n'est perdu, même en cas d'erreur de choix.
+
+---
+
+## 4. Cloudflare Tunnel (latelier.juleslfl.dev)
 
 Le site passe par le **tunnel Cloudflare déjà en place sur le NAS** (conteneur `cloudflared`, tunnel « géré localement »). Aucun port n'est ouvert sur la box, et le temps réel (WebSocket) passe par le tunnel sans réglage particulier.
 
@@ -183,7 +244,22 @@ Crée un réseau `docker network create web_tunnel`, puis un conteneur `cloudfla
 
 ---
 
-## 4. Ajouter ou modifier une mission
+## 5. Alertes Discord
+
+Facultatif. Dans ton serveur Discord : salon › ⚙️ **Modifier le salon** › **Intégrations** › **Webhooks** › **Nouveau webhook** › **Copier l'URL du webhook**, puis colle-la dans `DISCORD_WEBHOOK_URL`.
+
+Tu reçois un message quand :
+
+- un élève se connecte **alors qu'aucun mentor n'est connecté** (au plus toutes les 3 h) ;
+- un élève **termine un module** ;
+- un élève fait le **quiz d'échauffement** (avec son score) ;
+- une **sauvegarde échoue**, ou la base semble abîmée au démarrage.
+
+Seul le pseudo est envoyé (jamais le code ni les messages). L'adresse est vérifiée au démarrage (uniquement `https://discord.com/api/webhooks/…`), les redirections ne sont pas suivies et les messages ne peuvent mentionner personne. Test : **⚙️ Système → Envoyer un message de test**.
+
+---
+
+## 6. Ajouter ou modifier une mission
 
 Tout est dans **un seul fichier** : [`contenu/missions.js`](contenu/missions.js). Son en-tête documente tous les champs.
 
@@ -204,6 +280,8 @@ Tout est dans **un seul fichier** : [`contenu/missions.js`](contenu/missions.js)
 ```
 
 - **L'ordre dans le fichier = l'ordre des missions** dans chaque module.
+- **Défi bonus** : ajoute `bonus: true`. Il ne bloque pas la suite et s'ouvre quand toutes les missions obligatoires du module sont réussies.
+- **Quiz d'échauffement** : tout en bas du fichier (`export const quiz`), des questions rangées par mission : `{ question, choix: ['…', '…', '…'], reponse: 0, explication }` (`reponse` = position de la bonne réponse). Les réponses ne quittent jamais le serveur avant que l'élève ait répondu.
 - **Mise en forme** des textes : `**gras**`, `*italique*`, `` `code` ``, ligne vide = paragraphe, `- ` = liste.
 - **Vérifications disponibles** : `element`, `attribut`, `style`, `regleCss`, `console`, `clic`, `script` (ta propre fonction). Elles sont exécutées sur la vraie page de l'élève, dans un aperçu invisible.
 - Elles doivent vérifier la **structure**, jamais un texte précis : chaque élève a son propre thème.
@@ -220,20 +298,29 @@ Puis redémarre le serveur, ou fais `git push` puis *Pull and redeploy* sur le N
 
 ---
 
-## 5. Utilisation pendant une séance
+## 7. Utilisation pendant une séance
 
 1. **Avant la première séance** : `/mentor` → **+ Nouveau** → pseudo (pas de nom de famille). Copie le **lien personnel** et envoie-le à l'élève. Il n'est affiché qu'une fois, car il est stocké chiffré. Si l'élève le perd : onglet **Accès** → *Générer un nouveau lien*.
-2. **Pendant la séance** : onglet **🔴 Direct**. Tu y vois le code, l'aperçu, la console (avec ses erreurs), la mission en cours, sa checklist et les indices utilisés. La barre du bas envoie un message ou un indice, qui s'affiche chez l'élève en notification discrète.
-3. **Débloquer la suite** : onglet **🗺️ Parcours**. L'interrupteur d'un module ouvre ses missions, qui se débloquent ensuite une par une. Le menu *Accès* d'une mission force son ouverture ou sa fermeture. Le bouton *Valider* sert si une vérification automatique bloque injustement.
-4. **Publier** : onglet **🌍 Publication** → *Publier le site*. C'est une **copie figée** : refais *Mettre à jour* pour publier les nouveautés.
+2. **Pendant la séance** : onglet **🔴 Direct**. Tu y vois le code, l'aperçu, la console (avec ses erreurs JS et HTML), la mission en cours, sa checklist et les indices utilisés.
+   - **Clique sur un numéro de ligne** : elle est surlignée chez l'élève, avec une notification « Ton mentor te montre la ligne 12 ».
+   - La barre du bas envoie un **message**, un **indice** (il reste affiché jusqu'à ce que l'élève le ferme) ou lance un **🧩 quiz** de 3 questions.
+3. **Débloquer la suite** : onglet **🗺️ Parcours**. L'interrupteur d'un module ouvre ses missions, qui se débloquent ensuite une par une ; les **défis bonus ⭐** s'ouvrent quand le module est fini, sans bloquer la suite. Le menu *Accès* d'une mission force son ouverture ou sa fermeture. Le bouton *Valider* sert si une vérification automatique bloque injustement.
+4. **Il a tout cassé ou tout effacé ?** Onglet **🕓 Historique** : une copie est faite à chaque début de séance et à chaque publication. Choisis une version, regarde l'aperçu, *Restaurer* : son éditeur se met à jour en direct (et le code d'avant est gardé).
+5. **Après la séance** : onglet **📝 Notes** (privé, enregistré tout seul), bouton *+ Séance du jour*.
+6. **Publier** : onglet **🌍 Publication** → *Publier le site*. C'est une **copie figée** : refais *Mettre à jour* pour publier les nouveautés. Tu peux l'ajouter à la **vitrine** publique, voir le nombre de visites et télécharger le .zip.
 
-Côté élève : **A− / A+** règle la taille du code (pratique en partage d'écran Meet), **🔔** affiche les messages du mentor, et **⟲ Réinitialiser** remet le code tel qu'il était au début de la mission (Ctrl+Z annule).
+Côté élève :
+
+- **A− / A+** règle la taille du code (pratique en partage d'écran Meet), **🖥️ / 📱** montre son site comme sur un ordinateur ou un téléphone ;
+- **🏅** ses badges, **🌍 Mon site** le lien, le QR code à scanner, les visites et le téléchargement en .zip ;
+- **🔔** les messages du mentor, **⟲** remet le code tel qu'il était au début de la mission (Ctrl+Z annule) ;
+- au début d'une séance (au plus toutes les 6 h, dès 3 missions réussies), un **quiz d'échauffement** de 3 questions est proposé ; il peut le passer à plus tard.
 
 ---
 
-## 6. Sécurité et données
+## 8. Sécurité et données
 
-**Données stockées** : un pseudo, le code de l'élève, sa progression, les messages du mentor et les horaires de séance. **Pas** d'e-mail, pas de nom, pas d'IP, aucun traceur ni service tiers. Les polices sont hébergées par le site lui-même.
+**Données stockées** : un pseudo, le code de l'élève (et ses versions), sa progression, ses badges et scores de quiz, les messages et notes du mentor, les horaires de séance et un nombre de visites. **Pas** d'e-mail, pas de nom, pas d'IP, aucun traceur ni service tiers. Les polices sont hébergées par le site lui-même.
 
 | Risque | Protection |
 |---|---|
@@ -243,17 +330,23 @@ Côté élève : **A− / A+** règle la taille du code (pratique en partage d'�
 | Vol de session / CSRF | Cookies signés HMAC, `HttpOnly`, `SameSite=Strict`, `Secure` en HTTPS. En-tête `X-Atelier` obligatoire sur toute modification. WebSocket refusé s'il vient d'un autre site. |
 | Deviner un code d'accès | Codes aléatoires d'environ 59 bits, stockés hachés (HMAC). 10 essais par quart d'heure et par IP. Régénérer un code coupe immédiatement l'ancienne session. |
 | Données invalides ou énormes | Tout est revérifié côté serveur : tailles (200 Ko par onglet), formats, pseudo, identifiants de mission. |
+| Essais en rafale en falsifiant l'IP | En plus de la limite par IP, une limite **globale** des échecs (codes : 200 / 15 min ; mot de passe mentor : 30 / 15 min, avec 0,4 s de délai par échec). |
+| Perte ou vol des sauvegardes | Chiffrées (AES-256-GCM + scrypt), vérifiées, droits `600`, aucun accès par le web, restauration seulement en ligne de commande, site arrêté (voir § 3). |
+| Badges / quiz trichés | Calculés et corrigés par le serveur ; les réponses du quiz ne sont jamais envoyées avant la correction ; seuls 2 badges « d'exploration » sans enjeu peuvent être signalés par le navigateur. |
+| Vie privée des visiteurs | Compteur de visites sans cookie ni IP stockée : anti-doublon par empreinte salée **en mémoire**, effacée chaque jour ; robots, aperçus de liens, élève et mentor exclus. |
+| Indexation par les moteurs de recherche | En-tête `X-Robots-Tag: noindex` partout (élèves mineurs) ; la vitrine n'affiche que les sites cochés par le mentor. |
 | Injection dans l'interface | Le texte de l'élève n'est jamais inséré en HTML (uniquement `textContent`, CodeMirror ou iframe sandbox). |
 
 ---
 
-## 7. Organisation du code
+## 9. Organisation du code
 
 ```
-contenu/missions.js        ← LES MISSIONS (le seul fichier à modifier pour le contenu)
+contenu/missions.js        ← LES MISSIONS, défis et quiz (le seul fichier à modifier pour le contenu)
 partage/
   regles.js                déblocages, assemblage de la page (utilisé par le serveur ET le navigateur)
   garde-boucles.js         protection contre les boucles infinies
+  verif-html.js            vérificateur HTML pour débutants
 serveur/
   index.js · app.js        démarrage, Express, en-têtes de sécurité
   config.js                lecture du .env
@@ -262,13 +355,18 @@ serveur/
   catalogue.js             chargement et contrôle de contenu/missions.js
   service.js               logique métier (état de l'élève, sauvegarde…)
   temps-reel.js            Socket.IO : élève ⇄ serveur ⇄ mentor
-  routes/                  eleve.js · mentor.js · site.js
+  sauvegarde.js · verrou.js  sauvegardes chiffrées, verrou « site en marche »
+  badges.js · quiz.js      badges et quiz (calculés par le serveur)
+  discord.js               alertes Discord
+  zip.js · telechargement.js  téléchargement du site en .zip
+  outils/sauvegardes.js    liste / vérification / restauration en ligne de commande
+  routes/                  eleve.js · mentor.js · site.js (sites publiés, vitrine, visites)
 client/
   index.html · entree.html · mentor.html
   src/commun/              editeur (CodeMirror 6), apercu (iframes), sonde (script injecté
                            dans l'aperçu), console, erreurs en français, notifications
-  src/eleve/               atelier de l'élève (missions, parcours, mémo, célébration)
-  src/mentor/              panneau mentor
+  src/eleve/               atelier de l'élève (missions, parcours, mémo, célébration, badges, quiz, Mon site)
+  src/mentor/              panneau mentor (direct, parcours, historique, notes, système…)
   src/styles/              thème sombre
 tests/                     vitest (serveur, règles, outils) + navigateur/ (Firefox via WebDriver BiDi)
 ```
@@ -277,7 +375,7 @@ tests/                     vitest (serveur, règles, outils) + navigateur/ (Fire
 
 ---
 
-## 8. Publier le code sur GitHub
+## 10. Publier le code sur GitHub
 
 Le dossier `atelier/` est un dépôt Git autonome. `.gitignore` exclut déjà `.env`, `node_modules/`, `dist/`, la base de données et les captures de test.
 

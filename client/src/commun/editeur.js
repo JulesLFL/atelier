@@ -1,6 +1,7 @@
 // Éditeur de code (CodeMirror 6) : un éditeur par langage, thème sombre maison.
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, highlightSpecialChars, rectangularSelection, crosshairCursor } from '@codemirror/view';
-import { EditorState, Compartment, Transaction } from '@codemirror/state';
+import { EditorView, Decoration, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, dropCursor, highlightSpecialChars, rectangularSelection, crosshairCursor } from '@codemirror/view';
+import { EditorState, Compartment, Transaction, StateEffect, StateField } from '@codemirror/state';
+import { setDiagnostics, lintGutter } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 import { HighlightStyle, syntaxHighlighting, indentOnInput, bracketMatching, foldGutter, foldKeymap, indentUnit } from '@codemirror/language';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
@@ -42,9 +43,31 @@ const theme = EditorView.theme(
     '.cm-foldGutter span': { color: '#4b5366' },
     '.cm-panels': { backgroundColor: '#151a24', color: '#e7eaf2' },
     '.cm-searchMatch': { backgroundColor: '#fbbf2440' },
+    '.cm-ligne-montree': { backgroundColor: '#fbbf2433', boxShadow: 'inset 4px 0 0 #fbbf24', animation: 'ligneMontree 1s ease-in-out 3' },
+    '.cm-lintRange-error': { backgroundImage: 'none', textDecoration: 'underline wavy #f87171', textUnderlineOffset: '3px' },
+    '.cm-lintRange-warning': { backgroundImage: 'none', textDecoration: 'underline wavy #fbbf24', textUnderlineOffset: '3px' },
+    '.cm-tooltip-lint': { padding: '2px' },
+    '.cm-diagnostic': { padding: '6px 10px', fontFamily: 'var(--police-ui)', fontSize: '14px', maxWidth: '360px' },
+    '.cm-diagnostic-error': { borderLeft: '4px solid #f87171' },
+    '.cm-diagnostic-warning': { borderLeft: '4px solid #fbbf24' },
+    '.cm-gutter-lint': { width: '14px' },
   },
   { dark: true },
 );
+
+// Ligne « montrée » par le mentor : surlignée quelques secondes chez l'élève.
+const montrer = StateEffect.define();
+const champLigneMontree = StateField.define({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(montrer)) deco = e.value === null ? Decoration.none : Decoration.set([Decoration.line({ class: 'cm-ligne-montree' }).range(e.value)]);
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 const LANGAGES = { html: () => html({ autoCloseTags: true }), css: () => css(), js: () => javascript() };
 
@@ -53,10 +76,22 @@ const LANGAGES = { html: () => html({ autoCloseTags: true }), css: () => css(), 
  * @param {'html'|'css'|'js'} langage
  * @param {{ doc?: string, lectureSeule?: boolean, surChangement?: (texte:string) => void }} options
  */
-export function creerEditeur(parent, langage, { doc = '', lectureSeule = false, surChangement } = {}) {
+export function creerEditeur(parent, langage, { doc = '', lectureSeule = false, surChangement, surClicLigne } = {}) {
   const editable = new Compartment();
+  const numeros = surClicLigne
+    ? lineNumbers({
+        domEventHandlers: {
+          mousedown(view, ligne) {
+            surClicLigne(view.state.doc.lineAt(ligne.from).number);
+            return true;
+          },
+        },
+      })
+    : lineNumbers();
   const extensions = [
-    lineNumbers(),
+    numeros,
+    champLigneMontree,
+    lintGutter(),
     highlightActiveLineGutter(),
     highlightSpecialChars(),
     history(),
@@ -110,6 +145,22 @@ export function creerEditeur(parent, langage, { doc = '', lectureSeule = false, 
       const insert = `${avant}${texte}\n`;
       vue.dispatch({ changes: { from: position, insert }, selection: { anchor: position + insert.length }, scrollIntoView: true });
       vue.focus();
+    },
+    /** Souligne des remarques : [{ de, a, gravite: 'erreur'|'conseil', message }] */
+    remarques(liste) {
+      const longueur = vue.state.doc.length;
+      const diagnostics = liste
+        .filter((r) => r.de < longueur)
+        .map((r) => ({ from: r.de, to: Math.min(r.a, longueur), severity: r.gravite === 'erreur' ? 'error' : 'warning', message: r.message }));
+      vue.dispatch(setDiagnostics(vue.state, diagnostics));
+    },
+    /** Surligne une ligne quelques secondes et la fait défiler à l'écran. */
+    montrerLigne(numero, dureeMs = 6000) {
+      const n = Math.min(Math.max(1, numero), vue.state.doc.lines);
+      const ligne = vue.state.doc.line(n);
+      vue.dispatch({ effects: [montrer.of(ligne.from), EditorView.scrollIntoView(ligne.from, { y: 'center' })] });
+      clearTimeout(this._minuterieLigne);
+      this._minuterieLigne = setTimeout(() => vue.dispatch({ effects: montrer.of(null) }), dureeMs);
     },
     annuler: () => undo(vue),
     retablir: () => redo(vue),

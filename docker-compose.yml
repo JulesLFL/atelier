@@ -17,8 +17,13 @@ services:
       MENTOR_PASSWORD: ${MENTOR_PASSWORD:?Il manque MENTOR_PASSWORD (voir .env.example)}
       SESSION_SECRET: ${SESSION_SECRET:?Il manque SESSION_SECRET (voir .env.example)}
       PUBLIC_URL: ${PUBLIC_URL:-https://latelier.juleslfl.dev}
+      # Clé de chiffrement des sauvegardes (fortement conseillée, garde-la dans un gestionnaire de mots de passe)
+      SAUVEGARDE_CLE: ${SAUVEGARDE_CLE:-}
+      # Alertes Discord (optionnel)
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
       NODE_ENV: production
       DATA_DIR: /data
+      SAUVEGARDE_DOSSIER: /sauvegardes
       PORT: 3000 # port INTERNE du conteneur (celui du NAS se règle avec la variable PORT)
     ports:
       - "${PORT:-30085}:3000" # accès depuis le réseau de la maison : http://IP-DU-NAS:30085
@@ -26,6 +31,9 @@ services:
       - web_tunnel
     volumes:
       - atelier-donnees:/data # la base SQLite : elle survit aux mises à jour du conteneur
+      # Les sauvegardes, dans un AUTRE emplacement que la base. Idéal : un dataset du NAS,
+      # par exemple CHEMIN_SAUVEGARDES=/mnt/NAS/sauvegardes/atelier (puis chown 1000:1000).
+      - ${CHEMIN_SAUVEGARDES:-atelier-sauvegardes}:/sauvegardes
     # Variante : un dossier précis du NAS au lieu d'un volume Docker (voir README)
     #  - /mnt/tank/apps/atelier:/data
     security_opt:
@@ -36,6 +44,7 @@ services:
 
 volumes:
   atelier-donnees:
+  atelier-sauvegardes:
 
 networks:
   # Réseau partagé avec le conteneur cloudflared du NAS : le tunnel joint l'Atelier

@@ -5,6 +5,8 @@ import { chargerConfig } from '../serveur/config.js';
 import { creerApplication } from '../serveur/app.js';
 
 export const MDP = 'mot-de-passe-test';
+// Chaque connexion de test vient d'une « IP » différente, pour ne pas déclencher la limite d'essais.
+export const ipAuHasard = () => `10.${(Math.random() * 255) | 0}.${(Math.random() * 255) | 0}.${(Math.random() * 255) | 0}`;
 
 export async function demarrer() {
   const config = chargerConfig({
@@ -20,7 +22,7 @@ export async function demarrer() {
 
   async function mentor() {
     const a = agent();
-    await a.post('/api/mentor/connexion').set('X-Atelier', '1').send({ motDePasse: MDP }).expect(200);
+    await a.post('/api/mentor/connexion').set('X-Atelier', '1').set('CF-Connecting-IP', ipAuHasard()).send({ motDePasse: MDP }).expect(200);
     return a;
   }
 
@@ -31,7 +33,7 @@ export async function demarrer() {
 
   async function connecterEleve(code) {
     const a = agent();
-    await a.post('/api/entree').set('X-Atelier', '1').send({ code }).expect(200);
+    await a.post('/api/entree').set('X-Atelier', '1').set('CF-Connecting-IP', ipAuHasard()).send({ code }).expect(200);
     return a;
   }
 

@@ -136,6 +136,11 @@ export function creerLimiteur({ max, fenetreMs }) {
       e.n += 1;
       return e.n <= max;
     },
+    /** true si la limite est déjà atteinte (sans compter un essai de plus). */
+    depasse(cle) {
+      const e = essais.get(cle);
+      return Boolean(e && e.fin >= Date.now() && e.n >= max);
+    },
     reinitialiser: (cle) => essais.delete(cle),
   };
 }

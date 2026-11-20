@@ -5,3 +5,4 @@ donnees/
 *.db
 *.db-*
 tests/navigateur/captures/
+sauvegardes/

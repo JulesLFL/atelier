@@ -20,7 +20,12 @@
 //    memo: [ { terme, categorie, definition, exemple } ] entrées ajoutées au mémo quand la mission
 //                                  est débloquée. categorie : 'lexique', 'balise', 'propriete' ou 'js'
 //    verifications: [ … ]          la mission est réussie quand TOUTES sont vraies
+//    bonus: true                   (facultatif) défi bonus ⭐ : ne bloque pas la suite, s'ouvre quand
+//                                  toutes les missions obligatoires du module sont réussies
 //  }
+//
+//  LE QUIZ D'ÉCHAUFFEMENT : tout en bas du fichier (export const quiz), des questions rangées
+//  par mission. On ne pose que des questions sur des missions déjà réussies.
 //
 //  LES VÉRIFICATIONS (exécutées dans l'aperçu, sur la vraie page de l'élève)
 //  Chacune a un « label » : la ligne affichée dans la checklist de la mission.
@@ -406,6 +411,73 @@ Astuce : décale ce qui est à l'intérieur avec la touche **Tab**. Ça s'appell
     ],
   },
 
+  // --- Défis bonus HTML ⭐ -------------------------------------------------------
+  {
+    id: 'html-bonus-1',
+    module: 'html',
+    bonus: true,
+    titre: 'Un tableau de scores',
+    objectif: 'Ajoute un tableau (classement, records, stats…) avec au moins 3 lignes.',
+    explication: `Un tableau se construit ligne par ligne :
+
+- \`<table>\` entoure tout le tableau
+- \`<tr>\` crée une ligne (*table row*)
+- \`<th>\` est une case de titre (en gras), \`<td>\` une case normale
+
+Chaque ligne doit avoir le même nombre de cases. Mets une ligne de titres, puis au moins deux lignes de données.`,
+    exemple: '<table>\n  <tr>\n    <th>Joueur</th>\n    <th>Score</th>\n  </tr>\n  <tr>\n    <td>Alex</td>\n    <td>1200</td>\n  </tr>\n  <tr>\n    <td>Sam</td>\n    <td>950</td>\n  </tr>\n</table>',
+    indices: ['Commence par la ligne de titres : `<tr><th>Nom</th><th>Score</th></tr>` à l’intérieur de `<table>`.', 'Copie l’exemple et change les noms et les nombres.'],
+    memo: [
+      {
+        terme: '<table>, <tr>, <th>, <td>',
+        categorie: 'balise',
+        definition: 'Un tableau : table = le tableau, tr = une ligne, th = une case titre, td = une case.',
+        exemple: '<table>\n  <tr><th>Nom</th><th>Score</th></tr>\n  <tr><td>Alex</td><td>12</td></tr>\n</table>',
+      },
+    ],
+    verifications: [
+      { type: 'element', selecteur: 'table', label: 'Un tableau <table>' },
+      { type: 'element', selecteur: 'table th', texteMin: 1, label: 'Au moins une case de titre <th>' },
+      { type: 'element', selecteur: 'table tr', min: 3, label: 'Au moins 3 lignes <tr>' },
+      { type: 'element', selecteur: 'table td', min: 4, texteMin: 1, label: 'Au moins 4 cases <td> remplies' },
+    ],
+  },
+  {
+    id: 'html-bonus-2',
+    module: 'html',
+    bonus: true,
+    titre: 'Un sommaire cliquable',
+    objectif: 'Crée un lien qui fait sauter directement à une partie de ta page.',
+    explication: `Un lien peut mener à un endroit **de la même page** !
+
+1. Donne un **id** (un nom unique) à l'élément d'arrivée : \`<h2 id="astuces">Mes astuces</h2>\`
+2. Fais un lien vers cet id, avec un \`#\` devant : \`<a href="#astuces">Voir mes astuces</a>\`
+
+Les longues pages utilisent ça pour leur sommaire. Clique sur ton lien dans l'aperçu pour tester (ajoute du texte pour que la page défile).`,
+    exemple: '<a href="#astuces">Aller à mes astuces</a>\n\n<h2 id="astuces">Mes astuces</h2>',
+    indices: ['Ajoute `id="astuces"` dans la balise ouvrante d’un de tes `<h2>`.', 'Puis le lien : `<a href="#astuces">Mes astuces</a>`. Le texte après le `#` doit être exactement l’id.'],
+    memo: [
+      {
+        terme: 'Lien vers une ancre',
+        categorie: 'balise',
+        definition: 'Un lien href="#nom" fait défiler la page jusqu’à l’élément qui a id="nom".',
+        exemple: '<a href="#contact">Contact</a>\n…\n<h2 id="contact">Contact</h2>',
+      },
+    ],
+    verifications: [
+      { type: 'attribut', selecteur: 'a', attribut: 'href', motif: '^#.+', label: 'Un lien dont l’adresse commence par #' },
+      {
+        type: 'script',
+        label: 'Le lien mène bien à un élément qui a cet id',
+        test: (doc) =>
+          [...doc.querySelectorAll('a[href^="#"]')].some((a) => {
+            const id = decodeURIComponent(a.getAttribute('href').slice(1));
+            return id && doc.getElementById(id) !== null;
+          }),
+      },
+    ],
+  },
+
   // ==========================================================================
   //  MODULE CSS
   // ==========================================================================
@@ -601,6 +673,67 @@ Pour que le changement soit tout doux, \`transition\` donne la durée de l'anima
     verifications: [
       { type: 'regleCss', contient: ':hover', label: 'Une règle avec :hover' },
       { type: 'regleCss', proprietes: ['transition'], label: 'Une transition pour adoucir l’effet' },
+    ],
+  },
+
+  // --- Défis bonus CSS ⭐ --------------------------------------------------------
+  {
+    id: 'css-bonus-1',
+    module: 'css',
+    bonus: true,
+    titre: 'Une galerie en ligne',
+    objectif: 'Range des éléments côte à côte avec display: flex et de l’espace entre eux.',
+    explication: `Par défaut, les blocs s'empilent les uns sous les autres. Avec **flexbox**, on les range côte à côte !
+
+- \`display: flex\` sur le **parent** (l'élément qui contient les autres)
+- \`gap\` : l'espace entre les éléments
+- \`flex-wrap: wrap\` : passe à la ligne s'il n'y a plus de place
+
+Parfait pour une galerie d'images ou des cartes alignées.`,
+    exemple: {
+      html: '<div class="galerie">\n  <img src="https://picsum.photos/200/150?1" alt="Photo 1">\n  <img src="https://picsum.photos/200/150?2" alt="Photo 2">\n  <img src="https://picsum.photos/200/150?3" alt="Photo 3">\n</div>',
+      css: '.galerie {\n  display: flex;\n  gap: 16px;\n  flex-wrap: wrap;\n}',
+    },
+    indices: ['Mets tes éléments dans un même parent (par exemple `<div class="galerie">…</div>`).', 'En CSS : `.galerie { display: flex; gap: 16px; }`'],
+    memo: [
+      { terme: 'gap', categorie: 'propriete', definition: 'L’espace entre les éléments d’un conteneur flex (ou grid).', exemple: '.galerie {\n  gap: 16px;\n}' },
+      { terme: 'flex-wrap', categorie: 'propriete', definition: 'wrap : les éléments passent à la ligne quand il n’y a plus de place.', exemple: '.galerie {\n  flex-wrap: wrap;\n}' },
+    ],
+    verifications: [
+      { type: 'style', selecteur: 'body, body *', propriete: 'display', egal: 'flex', label: 'Un conteneur en display: flex' },
+      {
+        type: 'script',
+        label: 'Au moins 2 éléments dedans, avec de l’espace (gap)',
+        test: (doc) =>
+          [...doc.querySelectorAll('body, body *')].some((el) => {
+            const s = getComputedStyle(el);
+            const espace = parseFloat(s.columnGap) > 0 || parseFloat(s.rowGap) > 0;
+            return s.display === 'flex' && el.children.length >= 2 && espace;
+          }),
+      },
+    ],
+  },
+  {
+    id: 'css-bonus-2',
+    module: 'css',
+    bonus: true,
+    titre: 'Ombres et dégradés',
+    objectif: 'Ajoute un dégradé de couleurs et une ombre à des éléments de ta page.',
+    explication: `Deux effets qui donnent tout de suite un look pro :
+
+- \`background: linear-gradient(direction, couleur1, couleur2)\` : un **dégradé**. La direction peut être \`to right\`, \`to bottom\` ou un angle comme \`135deg\`.
+- \`box-shadow: x y flou couleur\` : une **ombre**. Par exemple \`0 8px 20px rgba(0, 0, 0, 0.4)\`.
+
+\`rgba\` est une couleur avec de la transparence : le dernier nombre va de 0 (invisible) à 1 (opaque).`,
+    exemple: 'body {\n  background: linear-gradient(135deg, #1e1b4b, #7c3aed);\n}\n\n.carte {\n  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);\n}',
+    indices: ['Pour le dégradé, remplace ton `background-color` du body par `background: linear-gradient(135deg, couleur1, couleur2);`', 'Pour l’ombre, ajoute `box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);` dans la règle de tes cartes.'],
+    memo: [
+      { terme: 'box-shadow', categorie: 'propriete', definition: 'Une ombre : décalage x, décalage y, flou, couleur.', exemple: '.carte {\n  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);\n}' },
+      { terme: 'rgba()', categorie: 'lexique', definition: 'Une couleur avec transparence : rouge, vert, bleu (0 à 255) et opacité (0 à 1).', exemple: 'rgba(0, 0, 0, 0.4)' },
+    ],
+    verifications: [
+      { type: 'style', selecteur: 'body, body *', propriete: 'background-image', contient: 'gradient', label: 'Un dégradé (linear-gradient)' },
+      { type: 'style', selecteur: 'body, body *', propriete: 'box-shadow', pasDefaut: true, label: 'Une ombre (box-shadow)' },
     ],
   },
 
@@ -802,4 +935,171 @@ Attention : la variable du compteur doit être créée **en dehors** de la fonct
       },
     ],
   },
+
+  // --- Défis bonus JS ⭐ -----------------------------------------------------------
+  {
+    id: 'js-bonus-1',
+    module: 'js',
+    bonus: true,
+    titre: 'Blague au hasard',
+    objectif: 'Un bouton qui affiche une blague (ou une citation, un conseil…) tirée au hasard.',
+    explication: `Un **tableau** (en anglais *array*) est une liste de valeurs entre crochets : \`["un", "deux", "trois"]\`. Chaque valeur a une position, en commençant à **0**.
+
+\`Math.random()\` donne un nombre au hasard entre 0 et 1. Multiplié par la longueur de la liste puis arrondi à l'entier inférieur avec \`Math.floor\`, il donne une position au hasard !`,
+    exemple: {
+      html: '<button id="blague">😂 Une blague !</button>\n<p id="texte-blague"></p>',
+      js: 'let blagues = [\n  "Pourquoi les plongeurs plongent-ils en arrière ? Sinon ils tombent dans le bateau.",\n  "Que dit un informaticien quand il s’ennuie ? Je me fichier.",\n  "Quel est le comble pour un joueur de bowling ? Perdre la boule."\n];\nlet boutonBlague = document.querySelector("#blague");\nlet texteBlague = document.querySelector("#texte-blague");\n\nboutonBlague.addEventListener("click", function () {\n  let position = Math.floor(Math.random() * blagues.length);\n  texteBlague.textContent = blagues[position];\n});',
+    },
+    indices: ['Crée d’abord le tableau : `let blagues = ["…", "…", "…"];` avec au moins 3 textes.', 'Dans la fonction du clic : `let position = Math.floor(Math.random() * blagues.length);` puis affiche `blagues[position]`.'],
+    memo: [
+      { terme: 'Tableau', categorie: 'lexique', definition: 'Une liste de valeurs entre crochets. La première est à la position 0.', exemple: 'let fruits = ["pomme", "kiwi"];\nconsole.log(fruits[0]); // pomme' },
+      { terme: 'Math.random()', categorie: 'js', definition: 'Un nombre au hasard entre 0 et 1. Avec Math.floor, on obtient une position au hasard.', exemple: 'let position = Math.floor(Math.random() * liste.length);' },
+    ],
+    verifications: [
+      { type: 'script', label: 'Un tableau et Math.random() dans ton JS', test: (doc, outils) => /\[[^\]]*["'`][^\]]*,/.test(outils.source.js) && /Math\.random\(\)/.test(outils.source.js) },
+      {
+        type: 'script',
+        label: 'Le texte change au hasard quand on clique',
+        test: async (doc, outils) => {
+          for (const bouton of doc.querySelectorAll('button')) {
+            const vus = new Set();
+            for (let i = 0; i < 12; i++) {
+              await outils.cliquer(bouton);
+              vus.add(outils.texteVisible(doc));
+            }
+            if (vus.size >= 2) return true;
+          }
+          return false;
+        },
+      },
+    ],
+  },
+  {
+    id: 'js-bonus-2',
+    module: 'js',
+    bonus: true,
+    titre: 'Le message secret',
+    objectif: 'Une zone de texte et un bouton : quand on clique, la page affiche ce qu’on a écrit.',
+    explication: `\`<input>\` crée une **zone de saisie** : le visiteur peut y écrire. Pas de balise fermante.
+
+En JS, \`.value\` donne ce qui est écrit dedans. On peut s'en servir pour afficher un message personnalisé, par exemple « Salut Sam ! ».
+
+Pour coller du texte et une variable, on utilise \`+\` : \`"Salut " + prenom + " !"\`. Ça s'appelle une **concaténation**.`,
+    exemple: {
+      html: '<input id="prenom" placeholder="Ton prénom">\n<button id="valider">Valider</button>\n<p id="bonjour"></p>',
+      js: 'let champ = document.querySelector("#prenom");\nlet boutonValider = document.querySelector("#valider");\nlet bonjour = document.querySelector("#bonjour");\n\nboutonValider.addEventListener("click", function () {\n  bonjour.textContent = "Salut " + champ.value + " ! 👋";\n});',
+    },
+    indices: ['En HTML : un `<input id="prenom">`, un bouton et un paragraphe vide avec un id.', 'Dans la fonction du clic : `bonjour.textContent = "Salut " + champ.value;`'],
+    memo: [
+      { terme: '<input>', categorie: 'balise', definition: 'Une zone où le visiteur peut écrire. placeholder = texte d’aide en gris.', exemple: '<input id="prenom" placeholder="Ton prénom">' },
+      { terme: '.value', categorie: 'js', definition: 'Le texte écrit dans un <input>.', exemple: 'let texte = champ.value;' },
+      { terme: 'Concaténation', categorie: 'lexique', definition: 'Coller des textes avec +.', exemple: '"Salut " + prenom + " !"' },
+    ],
+    verifications: [
+      { type: 'element', selecteur: 'input', label: 'Une zone de saisie <input>' },
+      {
+        type: 'script',
+        label: 'Ce qu’on écrit s’affiche dans la page après un clic',
+        test: async (doc, outils) => {
+          const secret = 'Atelier' + Math.floor(Math.random() * 1000);
+          for (const champ of doc.querySelectorAll('input:not([type]), input[type="text"], input[type="search"]')) {
+            champ.value = secret;
+            champ.dispatchEvent(new Event('input', { bubbles: true }));
+            for (const bouton of doc.querySelectorAll('button')) {
+              await outils.cliquer(bouton);
+              if (outils.texteVisible(doc).includes(secret)) return true;
+            }
+          }
+          return false;
+        },
+      },
+    ],
+  },
 ];
+
+// ============================================================================
+//  QUIZ D'ÉCHAUFFEMENT
+//  Au début d'une séance, l'élève reçoit 3 questions tirées au hasard parmi celles
+//  des missions qu'il a déjà réussies. Format :
+//    { question: '…', choix: ['…', '…', '…'], reponse: 0, explication: '…' }
+//  « reponse » est la position de la bonne réponse dans « choix » (0 = la première).
+//  Les réponses ne sont jamais envoyées au navigateur avant que l'élève ait répondu.
+// ============================================================================
+export const quiz = {
+  'html-1': [
+    { question: 'Quelle balise sert au titre principal d’une page ?', choix: ['<title>', '<h1>', '<head>'], reponse: 1, explication: '<h1> est le grand titre visible. <title> est le nom affiché dans l’onglet du navigateur.' },
+    { question: 'Comment ferme-t-on la balise <h1> ?', choix: ['</h1>', '<h1/>', '<\\h1>'], reponse: 0, explication: 'Une balise fermante a une barre oblique / juste après le chevron.' },
+  ],
+  'html-2': [
+    { question: 'Quelle balise pour un paragraphe de texte ?', choix: ['<text>', '<para>', '<p>'], reponse: 2, explication: '<p> comme paragraphe.' },
+    { question: 'Si tu vas à la ligne dans ton code HTML, que se passe-t-il dans la page ?', choix: ['Rien, le texte reste sur la même ligne', 'Le texte va aussi à la ligne', 'La page plante'], reponse: 0, explication: 'Le navigateur ignore les retours à la ligne du code : il faut un nouveau <p> (ou un <br>).' },
+  ],
+  'html-3': [
+    { question: 'Quelle balise donne le sous-titre le plus important ?', choix: ['<h6>', '<h2>', '<sub>'], reponse: 1, explication: 'h1 est le titre principal, h2 le sous-titre le plus important… jusqu’à h6.' },
+  ],
+  'html-4': [
+    { question: 'Comment s’appelle le fait de mettre une balise dans une autre ?', choix: ['Empiler', 'Imbriquer', 'Encadrer'], reponse: 1, explication: 'On imbrique : <p>Un mot <strong>important</strong></p>.' },
+    { question: 'Lequel est bien écrit ?', choix: ['<p><strong>Oui</p></strong>', '<p><strong>Oui</strong></p>', '<strong><p>Oui</strong></p>'], reponse: 1, explication: 'La dernière balise ouverte est la première fermée.' },
+  ],
+  'html-5': [
+    { question: 'Dans une liste à puces, quelle balise contient chaque élément ?', choix: ['<ul>', '<item>', '<li>'], reponse: 2, explication: '<ul> entoure la liste, <li> pour chaque élément.' },
+  ],
+  'html-6': [
+    { question: 'Quel attribut donne l’adresse d’une image ?', choix: ['href', 'src', 'alt'], reponse: 1, explication: 'src = source. alt = la description.' },
+    { question: 'À quoi sert l’attribut alt d’une image ?', choix: ['À la décrire pour ceux qui ne la voient pas', 'À changer sa taille', 'À la rendre cliquable'], reponse: 0, explication: 'alt est lu par les lecteurs d’écran, et affiché si l’image ne charge pas.' },
+  ],
+  'html-7': [
+    { question: 'Quel attribut contient l’adresse d’un lien <a> ?', choix: ['src', 'link', 'href'], reponse: 2, explication: '<a href="https://…">texte</a>' },
+    { question: 'Que fait target="_blank" sur un lien ?', choix: ['Il ouvre le lien dans un nouvel onglet', 'Il rend le lien invisible', 'Il désactive le lien'], reponse: 0, explication: 'Le lien s’ouvre dans un nouvel onglet.' },
+  ],
+  'html-8': [
+    { question: 'Où met-on le titre principal du site, en général ?', choix: ['Dans <footer>', 'Dans <header>', 'Dans <main>'], reponse: 1, explication: '<header> = l’en-tête en haut, <main> = le contenu, <footer> = le pied de page.' },
+  ],
+  'css-1': [
+    { question: 'Dans « body { background-color: navy; } », qu’est-ce que body ?', choix: ['La propriété', 'Le sélecteur', 'La valeur'], reponse: 1, explication: 'Le sélecteur dit à qui on applique le style.' },
+    { question: 'Qu’est-ce qui termine chaque déclaration CSS ?', choix: ['Un point-virgule ;', 'Un point .', 'Une virgule ,'], reponse: 0, explication: 'propriété: valeur; avec le point-virgule à la fin.' },
+  ],
+  'css-2': [
+    { question: 'Quelle propriété change la couleur du TEXTE ?', choix: ['background-color', 'font-color', 'color'], reponse: 2, explication: 'color pour le texte, background-color pour le fond.' },
+    { question: 'Laquelle est une couleur valide en CSS ?', choix: ['#ff6b6b', '#zz9900', 'ff6b6b'], reponse: 0, explication: 'Un # suivi de 6 caractères entre 0-9 et a-f.' },
+  ],
+  'css-3': [
+    { question: 'Avec 3rem, le texte est…', choix: ['3 fois plus grand que la taille normale', '3 pixels de haut', '3 % plus grand'], reponse: 0, explication: '1rem = la taille normale du texte.' },
+  ],
+  'css-4': [
+    { question: 'Comment s’écrit le sélecteur de la classe « carte » ?', choix: ['#carte', '.carte', 'carte'], reponse: 1, explication: 'Un point pour une classe, un # pour un id.' },
+    { question: 'padding, c’est l’espace…', choix: ['À l’intérieur, entre le bord et le contenu', 'À l’extérieur, autour de l’élément', 'Entre les lignes de texte'], reponse: 0, explication: 'padding = intérieur, margin = extérieur.' },
+  ],
+  'css-5': [
+    { question: 'Que fait margin: 0 auto sur un élément qui a un max-width ?', choix: ['Il le centre horizontalement', 'Il le cache', 'Il le colle à gauche'], reponse: 0, explication: 'auto à gauche et à droite = marges égales = centré.' },
+  ],
+  'css-6': [
+    { question: 'Que veut dire :hover dans « a:hover » ?', choix: ['Quand la souris est sur le lien', 'Quand on a déjà cliqué', 'Quand la page charge'], reponse: 0, explication: ':hover est une pseudo-classe : l’état « survolé ».' },
+    { question: 'À quoi sert transition ?', choix: ['À animer en douceur un changement de style', 'À changer de page', 'À cacher un élément'], reponse: 0, explication: 'transition: all 0.3s; = le changement dure 0,3 seconde.' },
+  ],
+  'js-1': [
+    { question: 'Où s’affiche un console.log("Salut") ?', choix: ['Dans la console', 'En gros au milieu de la page', 'Dans le titre de l’onglet'], reponse: 0, explication: 'La console sert au développeur, le visiteur ne la voit pas.' },
+    { question: 'Comment appelle-t-on un texte entre guillemets en JS ?', choix: ['Un mot-clé', 'Une chaîne de caractères', 'Une balise'], reponse: 1, explication: '"Bonjour" est une chaîne de caractères.' },
+  ],
+  'js-2': [
+    { question: 'Quel mot crée une variable ?', choix: ['var-create', 'let', 'new'], reponse: 1, explication: 'let score = 0; crée une variable score.' },
+    { question: 'Que renvoie document.querySelector("h1") ?', choix: ['Le premier <h1> de la page', 'Tous les <h1>', 'Le texte « h1 »'], reponse: 0, explication: 'querySelector renvoie le PREMIER élément qui correspond.' },
+  ],
+  'js-3': [
+    { question: 'Dans addEventListener("click", …), qu’est-ce que "click" ?', choix: ['Une variable', 'Un événement', 'Une balise'], reponse: 1, explication: 'C’est l’événement à écouter : le clic.' },
+    { question: 'Le sélecteur de l’élément id="reponse" s’écrit…', choix: ['".reponse"', '"reponse"', '"#reponse"'], reponse: 2, explication: '# pour un id.' },
+  ],
+  'js-4': [
+    { question: 'Que fait classList.toggle("sombre") ?', choix: ['Ajoute la classe si elle est absente, l’enlève sinon', 'Supprime l’élément', 'Ajoute la classe deux fois'], reponse: 0, explication: 'Comme un interrupteur.' },
+  ],
+  'js-5': [
+    { question: 'Si compteur vaut 4, que vaut-il après compteur = compteur + 1 ?', choix: ['4', '5', '41'], reponse: 1, explication: 'On prend 4, on ajoute 1, on range 5 dans la variable.' },
+    { question: 'Pourquoi créer « let compteur = 0 » EN DEHORS de la fonction du clic ?', choix: ['Sinon il repart de 0 à chaque clic', 'Parce que c’est plus joli', 'Ça ne change rien'], reponse: 0, explication: 'Une variable créée dans la fonction est recréée à chaque clic.' },
+  ],
+  'html-bonus-1': [{ question: 'Dans un tableau, que crée <tr> ?', choix: ['Une ligne', 'Une colonne', 'Une case'], reponse: 0, explication: 'tr = table row, une ligne.' }],
+  'html-bonus-2': [{ question: 'Pour aller à l’élément id="contact", le lien est…', choix: ['href="contact"', 'href="#contact"', 'href=".contact"'], reponse: 1, explication: 'Un # suivi de l’id.' }],
+  'css-bonus-1': [{ question: 'Sur quel élément met-on display: flex ?', choix: ['Sur le parent qui contient les éléments', 'Sur chaque élément à ranger', 'Sur le body uniquement'], reponse: 0, explication: 'Le parent devient un conteneur flex et range ses enfants.' }],
+  'css-bonus-2': [{ question: 'Dans rgba(0, 0, 0, 0.4), que règle le 0.4 ?', choix: ['La transparence', 'La taille', 'Le flou'], reponse: 0, explication: 'Le dernier nombre est l’opacité, de 0 à 1.' }],
+  'js-bonus-1': [{ question: 'Dans ["a", "b", "c"], quelle est la position de "a" ?', choix: ['1', '0', 'a'], reponse: 1, explication: 'Les positions commencent à 0.' }],
+  'js-bonus-2': [{ question: 'Quelle propriété donne le texte écrit dans un <input> ?', choix: ['.textContent', '.value', '.text'], reponse: 1, explication: 'champ.value contient ce que le visiteur a tapé.' }],
+};

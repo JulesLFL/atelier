@@ -205,3 +205,145 @@ describe('Publication', () => {
     expect(r.headers['content-security-policy']).toMatch(/frame-ancestors 'none'/);
   });
 });
+
+describe('Limites d’essais', () => {
+  it('limite globale : falsifier l’IP ne permet pas d’essayer des codes à l’infini', async () => {
+    const { demarrer: d } = await import('./aide.js');
+    const t2 = await d();
+    let dernier;
+    for (let i = 0; i < 205; i++) {
+      dernier = await t2.agent().post('/api/entree').set('X-Atelier', '1').set('CF-Connecting-IP', `10.0.${i >> 8}.${i & 255}`).send({ code: 'AAAA-AAAA-AAAA' });
+    }
+    expect(dernier.status).toBe(429);
+    await t2.fermer();
+  });
+});
+
+describe('Historique, notes, quiz et badges', () => {
+  it('versions : copie à la connexion, restauration poussée en direct, ancienne version gardée', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'histo');
+    const a = await t.connecterEleve(e.code);
+    await a.put('/api/eleve/projet').set('X-Atelier', '1').send({ html: '<h1>Version 1</h1>', css: '', js: '' }).expect(200);
+    const se = t.socket('/eleve', a);
+    await attendreEvt(se, 'connect');
+    await new Promise((r) => setTimeout(r, 50));
+    let versions = (await m.get(`/api/mentor/eleves/${e.id}/versions`).expect(200)).body;
+    expect(versions.map((v) => v.raison)).toEqual(['seance']);
+    const v1 = versions[0].id;
+
+    await a.put('/api/eleve/projet').set('X-Atelier', '1').send({ html: '<h1>Tout cassé</h1>', css: '', js: '' }).expect(200);
+    const remplace = attendreEvt(se, 'code:remplacer');
+    await m.post(`/api/mentor/eleves/${e.id}/versions/${v1}/restauration`).set('X-Atelier', '1').expect(200);
+    expect((await remplace).code.html).toBe('<h1>Version 1</h1>');
+    versions = (await m.get(`/api/mentor/eleves/${e.id}/versions`).expect(200)).body;
+    expect(versions[0].raison).toBe('avant-restauration');
+    expect((await m.get(`/api/mentor/eleves/${e.id}/versions/${versions[0].id}`).expect(200)).body.html).toBe('<h1>Tout cassé</h1>');
+    await m.post(`/api/mentor/eleves/${e.id}/versions/abc/restauration`).set('X-Atelier', '1').expect(404);
+    // Un élève ne peut pas lire les versions d'un autre (routes mentor uniquement)
+    await a.get(`/api/mentor/eleves/${e.id}/versions`).expect(401);
+    se.disconnect();
+  });
+
+  it('notes privées : réservées au mentor, taille limitée', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'notes');
+    await m.put(`/api/mentor/eleves/${e.id}/notes`).set('X-Atelier', '1').send({ texte: 'Revoir padding / margin' }).expect(200);
+    expect((await m.get(`/api/mentor/eleves/${e.id}/notes`).expect(200)).body.texte).toBe('Revoir padding / margin');
+    await m.put(`/api/mentor/eleves/${e.id}/notes`).set('X-Atelier', '1').send({ texte: 'x'.repeat(20001) }).expect(400);
+    const a = await t.connecterEleve(e.code);
+    const etat = (await a.get('/api/eleve/etat').expect(200)).body;
+    expect(JSON.stringify(etat)).not.toContain('padding / margin');
+  });
+
+  it('quiz : réponses jamais envoyées avant, correction côté serveur, une seule fois', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'quiz');
+    const a = await t.connecterEleve(e.code);
+    const se = t.socket('/eleve', a);
+    await attendreEvt(se, 'connect');
+    expect(await emettre(se, 'quiz:demander')).toBeNull(); // aucune mission réussie
+    for (const id of ['html-1', 'html-2', 'html-3']) expect((await emettre(se, 'mission:reussie', id)).ok).toBe(true);
+    const quiz = await emettre(se, 'quiz:demander');
+    expect(quiz.questions).toHaveLength(3);
+    expect(JSON.stringify(quiz)).not.toMatch(/bonne|reponse|explication/);
+    expect(await emettre(se, 'quiz:demander')).toBeNull(); // pas deux fois de suite
+    const resultat = await emettre(se, 'quiz:repondre', { id: quiz.id, reponses: [0, 0, 0] });
+    expect(resultat.total).toBe(3);
+    expect(resultat.corrections[0]).toHaveProperty('bonne');
+    expect(await emettre(se, 'quiz:repondre', { id: quiz.id, reponses: [0, 0, 0] })).toBeNull();
+    // Le mentor peut relancer un quiz quand il veut
+    const lance = attendreEvt(se, 'quiz:lancer');
+    await m.post(`/api/mentor/eleves/${e.id}/quiz`).set('X-Atelier', '1').expect(200);
+    expect((await lance).questions).toHaveLength(3);
+    se.disconnect();
+  });
+
+  it('badges : attribués par le serveur, l’élève ne peut s’en donner que deux « d’exploration »', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'badges');
+    const a = await t.connecterEleve(e.code);
+    const se = t.socket('/eleve', a);
+    await attendreEvt(se, 'connect');
+    const r = await emettre(se, 'mission:reussie', 'html-1');
+    expect(r.badges.map((b) => b.id)).toEqual(['premier-pas']);
+    const nouveaux = attendreEvt(se, 'badges:nouveaux');
+    se.emit('badge:evenement', 'legende'); // interdit : ignoré
+    se.emit('badge:evenement', 'explorateur');
+    expect((await nouveaux).map((b) => b.id)).toEqual(['explorateur']);
+    const badges = (await a.get('/api/eleve/etat').expect(200)).body.badges.map((b) => b.badge);
+    expect(badges.sort()).toEqual(['explorateur', 'premier-pas']);
+    se.disconnect();
+  });
+});
+
+describe('Site publié : visites, vitrine, zip', () => {
+  it('compte les visites sans doublon, sans robots, sans l’élève ni le mentor', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'visites');
+    const a = await t.connecterEleve(e.code);
+    await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
+    const visiter = (ip, ua = 'Mozilla/5.0 Firefox', extra = {}) => t.agent().get('/site/visites').set({ 'CF-Connecting-IP': ip, 'User-Agent': ua, ...extra }).expect(200);
+    await visiter('1.1.1.1');
+    await visiter('1.1.1.1'); // même visiteur le même jour
+    await visiter('2.2.2.2');
+    await visiter('3.3.3.3', 'Discordbot/2.0'); // aperçu de lien
+    await visiter('4.4.4.4', 'Mozilla/5.0', { 'Sec-Fetch-Dest': 'iframe' }); // miniature
+    await a.get('/site/visites').set('CF-Connecting-IP', '5.5.5.5').expect(200); // l'élève lui-même
+    await m.get('/site/visites').set('CF-Connecting-IP', '6.6.6.6').expect(200); // le mentor
+    expect((await a.get('/api/eleve/etat').expect(200)).body.visites).toBe(2);
+    expect(t.appli.bdd.db.prepare("SELECT sql FROM sqlite_master WHERE sql LIKE '%ip%' AND name NOT LIKE 'sqlite%'").all().filter((r) => /\bip\b/i.test(r.sql))).toHaveLength(0);
+  });
+
+  it('vitrine : seulement les sites cochés, jamais indexée', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'vitrine');
+    await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
+    let r = await t.agent().get('/vitrine').expect(200);
+    expect(r.text).not.toContain('/site/vitrine');
+    expect(r.headers['x-robots-tag']).toMatch(/noindex/);
+    await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: true }).expect(200);
+    r = await t.agent().get('/vitrine').expect(200);
+    expect(r.text).toContain('/site/vitrine');
+    expect(r.text).toMatch(/<iframe src="\/site\/vitrine" sandbox=""/);
+    await m.put(`/api/mentor/eleves/${e.id}/vitrine`).set('X-Atelier', '1').send({ visible: 'oui' }).expect(400);
+  });
+
+  it('zip : contient index.html qui appelle seulement les fichiers débloqués', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'zip');
+    const a = await t.connecterEleve(e.code);
+    await a.put('/api/eleve/projet').set('X-Atelier', '1').send({ html: '<h1>Mon site</h1>', css: 'h1{}', js: 'secret()' }).expect(200);
+    const r = await a.get('/api/eleve/site.zip').buffer(true).parse((res, cb) => {
+      const morceaux = [];
+      res.on('data', (c) => morceaux.push(c));
+      res.on('end', () => cb(null, Buffer.concat(morceaux)));
+    }).expect(200);
+    expect(r.headers['content-disposition']).toBe('attachment; filename="site-zip.zip"');
+    const contenu = r.body;
+    expect(contenu.subarray(0, 4).toString('hex')).toBe('504b0304'); // signature ZIP
+    expect(contenu.includes(Buffer.from('site-zip/index.html'))).toBe(true);
+    expect(contenu.includes(Buffer.from('site-zip/script.js'))).toBe(false); // JS pas encore débloqué
+    await t.agent().get('/api/eleve/site.zip').expect(401);
+  });
+});

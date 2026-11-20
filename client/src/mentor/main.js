@@ -13,6 +13,9 @@ import { creerEditeur } from '../commun/editeur.js';
 import { creerApercu } from '../commun/apercu.js';
 import { creerConsole } from '../commun/console.js';
 import { notifier, confirmer, fenetre } from '../commun/notifications.js';
+import { verifierHtml } from '@partage/verif-html.js';
+import { compterProgression } from '@partage/regles.js';
+import { ongletHistorique, ongletNotes, ouvrirSysteme, verifierSysteme } from './extras.js';
 
 const app = document.getElementById('app');
 const LANGAGES = ['html', 'css', 'js'];
@@ -22,6 +25,8 @@ const ONGLETS = [
   { id: 'parcours', titre: '🗺️ Parcours' },
   { id: 'messages', titre: '💬 Messages' },
   { id: 'progression', titre: '📈 Progression' },
+  { id: 'historique', titre: '🕓 Historique' },
+  { id: 'notes', titre: '📝 Notes' },
   { id: 'publication', titre: '🌍 Publication' },
   { id: 'acces', titre: '🔑 Accès' },
 ];
@@ -93,7 +98,7 @@ function rendreSquelette() {
       'header',
       { class: 'barre' },
       h('div', { class: 'marque' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, '</>'), 'L’Atelier ', h('span', { class: 'puce-mentor' }, 'mentor')),
-      h('div', { class: 'barre-droite' }, h('button', { class: 'bouton-discret', onclick: deconnecter }, 'Se déconnecter')),
+      h('div', { class: 'barre-droite' }, h('span', { id: 'alerte-systeme' }), h('button', { class: 'bouton-discret', onclick: () => ouvrirSysteme() }, '⚙️ Système'), h('button', { class: 'bouton-discret', onclick: deconnecter }, 'Se déconnecter')),
     ),
     h(
       'div',
@@ -103,6 +108,7 @@ function rendreSquelette() {
     ),
   );
   rendreListe();
+  verifierSysteme(document.getElementById('alerte-systeme'));
 }
 
 async function deconnecter() {
@@ -162,7 +168,6 @@ function rendreFiche() {
     return;
   }
   const f = M.fiche;
-  const faites = f.etat.missions.filter((m) => m.statut === 'reussie').length;
   vider(
     fiche,
     h(
@@ -170,7 +175,7 @@ function rendreFiche() {
       { class: 'entete-fiche' },
       h('h1', {}, f.eleve.pseudo),
       h('span', { class: `etat-presence${f.enLigne ? ' en-ligne' : ''}` }, f.enLigne ? '🟢 En ligne' : `⚪ Vu ${dateRelative(f.eleve.derniereActivite)}`),
-      h('span', { class: 'resume' }, `${faites} / ${f.etat.missions.length} missions · ${duree(f.eleve.tempsActifS)} de code`),
+      h('span', { class: 'resume' }, resumeFiche(f)),
     ),
     h(
       'nav',
@@ -182,6 +187,11 @@ function rendreFiche() {
   rendreOnglet();
 }
 
+function resumeFiche(f) {
+  const { faites, total, bonusFaits } = compterProgression(f.etat);
+  return `${faites} / ${total} missions${bonusFaits ? ` · ⭐ ${bonusFaits} défi${bonusFaits > 1 ? 's' : ''}` : ''} · 🏅 ${f.badges?.length || 0} · ${duree(f.eleve.tempsActifS)} de code`;
+}
+
 function changerOnglet(id) {
   M.onglet = id;
   prefs.ecrire('mentor:onglet', id);
@@ -190,7 +200,17 @@ function changerOnglet(id) {
 
 function rendreOnglet() {
   const c = document.getElementById('contenu-fiche');
-  ({ direct: ongletDirect, parcours: ongletParcours, messages: ongletMessages, progression: ongletProgression, publication: ongletPublication, acces: ongletAcces })[M.onglet](c);
+  const contexte = { M, rechargerFiche };
+  ({
+    direct: ongletDirect,
+    parcours: ongletParcours,
+    messages: ongletMessages,
+    progression: ongletProgression,
+    historique: (el) => ongletHistorique(el, contexte),
+    notes: (el) => ongletNotes(el, contexte),
+    publication: ongletPublication,
+    acces: ongletAcces,
+  })[M.onglet](c);
 }
 
 /** Met à jour la fiche sans casser la vue en direct (éditeurs). */
@@ -200,10 +220,9 @@ function rafraichirFiche() {
     const entete = document.querySelector('.entete-fiche');
     if (entete) {
       const f = M.fiche;
-      const faites = f.etat.missions.filter((m) => m.statut === 'reussie').length;
       entete.querySelector('.etat-presence').className = `etat-presence${f.enLigne ? ' en-ligne' : ''}`;
       entete.querySelector('.etat-presence').textContent = f.enLigne ? '🟢 En ligne' : `⚪ Vu ${dateRelative(f.eleve.derniereActivite)}`;
-      entete.querySelector('.resume').textContent = `${faites} / ${f.etat.missions.length} missions · ${duree(f.eleve.tempsActifS)} de code`;
+      entete.querySelector('.resume').textContent = resumeFiche(f);
     }
   } else {
     rendreFiche();
@@ -231,7 +250,7 @@ function ongletDirect(c) {
     h(
       'div',
       { class: 'grille-direct' },
-      h('section', { class: 'zone-editeur' }, h('div', { class: 'entete-zone' }, ongletsCode, h('span', { class: 'lecture-seule' }, '👁️ lecture seule')), zoneEditeurs),
+      h('section', { class: 'zone-editeur' }, h('div', { class: 'entete-zone' }, ongletsCode, h('span', { class: 'lecture-seule', title: 'Clique sur un numéro de ligne pour la surligner chez l’élève' }, '👆 clic sur un n° de ligne = la montrer')), zoneEditeurs),
       h('section', { class: 'zone-apercu' }, h('div', { class: 'entete-zone' }, h('div', { class: 'titre-zone' }, h('span', { class: 'point-direct' }), 'Ce que voit l’élève')), cadre, blocConsole),
     ),
     envoiRapide(),
@@ -241,7 +260,16 @@ function ongletDirect(c) {
   for (const l of LANGAGES) {
     const zone = h('div', { class: 'editeur', hidden: l !== M.ongletCode });
     zoneEditeurs.append(zone);
-    editeurs[l] = creerEditeur(zone, l, { doc: f.code?.[l] ?? '', lectureSeule: true });
+    editeurs[l] = creerEditeur(zone, l, {
+      doc: f.code?.[l] ?? '',
+      lectureSeule: true,
+      // Clic sur un numéro de ligne : elle est surlignée chez l'élève.
+      surClicLigne: (ligne) => {
+        socket.emit('pointer', { eleveId: M.selection, onglet: l, ligne });
+        editeurs[l].montrerLigne(ligne, 2500);
+        notifier({ icone: '👉', texte: `Ligne ${ligne} montrée à l’élève.`, duree: 2000 });
+      },
+    });
   }
   const console_ = creerConsole(blocConsole, { cleOuverture: 'mentor:console' });
   const apercu = creerApercu(cadre, { surMessage: (msg, infos) => console_.recevoir(msg, infos), surRechargement: () => console_.effacer() });
@@ -281,6 +309,9 @@ const majApercuDirect = debounce(async () => {
   if (!direct) return;
   const onglets = M.fiche.etat.onglets;
   direct.apercu.mettreAJour(direct.code, onglets);
+  const remarques = verifierHtml(direct.code?.html);
+  direct.console.remarquesHtml(remarques);
+  direct.editeurs.html.remarques(remarques);
   const mission = M.catalogue.missions.find((m) => m.id === M.fiche.missionCourante);
   if (mission) {
     const r = await direct.apercu.verifier(direct.code, onglets, mission.verifications);
@@ -338,7 +369,22 @@ function envoiRapide() {
     }
   };
   champ.addEventListener('keydown', (e) => e.key === 'Enter' && envoyer('message'));
-  return h('div', { class: 'envoi-rapide' }, champ, h('button', { class: 'bouton-secondaire', onclick: () => envoyer('indice') }, '💡 Indice'), h('button', { class: 'bouton-principal', onclick: () => envoyer('message') }, '💬 Envoyer'));
+  const quiz = async () => {
+    try {
+      await api('POST', `/api/mentor/eleves/${M.selection}/quiz`);
+      notifier({ icone: '🧩', texte: 'Quiz envoyé : il s’affiche chez l’élève.', duree: 3000, type: 'succes' });
+    } catch (e) {
+      notifier({ icone: '⚠️', texte: e.message, type: 'erreur' });
+    }
+  };
+  return h(
+    'div',
+    { class: 'envoi-rapide' },
+    champ,
+    h('button', { class: 'bouton-secondaire', onclick: () => envoyer('indice') }, '💡 Indice'),
+    h('button', { class: 'bouton-principal', onclick: () => envoyer('message') }, '💬 Envoyer'),
+    h('button', { class: 'bouton-secondaire', onclick: quiz, title: '3 questions sur ce qu’il a déjà appris' }, '🧩 Quiz'),
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -411,7 +457,7 @@ function ongletParcours(c) {
                   'tr',
                   { class: m.id === f.missionCourante ? 'courante' : '' },
                   h('td', {}, i + 1),
-                  h('td', {}, m.titre, m.id === f.missionCourante && h('span', { class: 'puce-courante' }, 'en cours')),
+                  h('td', {}, m.bonus ? `⭐ ${m.titre}` : m.titre, m.bonus && h('small', { class: 'mini-bonus' }, ' défi bonus'), m.id === f.missionCourante && h('span', { class: 'puce-courante' }, 'en cours')),
                   h('td', {}, h('span', { class: `statut statut-${st.statut}` }, { reussie: '✅ réussie', disponible: '▶️ disponible', verrouillee: '🔒 verrouillée' }[st.statut]), p?.parMentor && h('small', { title: 'Validée par toi' }, ' (par toi)')),
                   h('td', {}, p?.indices ? `💡 ${p.indices}` : '—'),
                   h('td', {}, select),
@@ -460,10 +506,11 @@ function ongletMessages(c) {
 // -----------------------------------------------------------------------------
 function ongletProgression(c) {
   const f = M.fiche;
-  const faites = f.etat.missions.filter((m) => m.statut === 'reussie').length;
+  const { faites, total, bonusFaits, bonusTotal } = compterProgression(f.etat);
   const indices = Object.values(f.progression).reduce((s, p) => s + (p.indices || 0), 0);
+  const obtenus = new Map((f.badges || []).map((b) => [b.badge, b.obtenu_le]));
   const parModule = M.catalogue.modules.map((mod) => {
-    const ids = M.catalogue.missions.filter((m) => m.module === mod.id).map((m) => m.id);
+    const ids = M.catalogue.missions.filter((m) => m.module === mod.id && !m.bonus).map((m) => m.id);
     const ok = ids.filter((id) => f.etat.missions.find((m) => m.id === id)?.statut === 'reussie').length;
     return { mod, ok, total: ids.length };
   });
@@ -473,7 +520,9 @@ function ongletProgression(c) {
     h(
       'div',
       { class: 'cartes-stats' },
-      h('div', { class: 'stat' }, h('span', { class: 'valeur' }, `${faites}/${f.etat.missions.length}`), h('span', {}, 'missions réussies')),
+      h('div', { class: 'stat' }, h('span', { class: 'valeur' }, `${faites}/${total}`), h('span', {}, 'missions réussies')),
+      h('div', { class: 'stat' }, h('span', { class: 'valeur' }, `⭐ ${bonusFaits}/${bonusTotal}`), h('span', {}, 'défis bonus')),
+      h('div', { class: 'stat' }, h('span', { class: 'valeur' }, `👀 ${f.visites || 0}`), h('span', {}, 'visites du site')),
       h('div', { class: 'stat' }, h('span', { class: 'valeur' }, duree(f.eleve.tempsActifS)), h('span', {}, 'de code actif')),
       h('div', { class: 'stat' }, h('span', { class: 'valeur' }, derniere ? new Date(derniere.debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'), h('span', {}, 'dernière séance')),
       h('div', { class: 'stat' }, h('span', { class: 'valeur' }, indices), h('span', {}, 'indices utilisés')),
@@ -483,6 +532,24 @@ function ongletProgression(c) {
       { class: 'barres-modules' },
       parModule.map(({ mod, ok, total }) => h('div', { class: `barre-module module-${mod.id}` }, h('span', {}, `${mod.emoji} ${mod.titre}`), h('div', { class: 'jauge' }, h('div', { class: 'jauge-remplie', style: `width:${(ok / total) * 100}%` })), h('span', {}, `${ok}/${total}`))),
     ),
+    h('h2', { class: 'titre-section' }, `Badges (${obtenus.size} / ${M.catalogue.badges.length})`),
+    h(
+      'ul',
+      { class: 'badges-mentor' },
+      M.catalogue.badges.map((b) =>
+        h('li', { class: obtenus.has(b.id) ? 'obtenu' : '', title: `${b.description}${obtenus.has(b.id) ? ` · obtenu le ${new Date(obtenus.get(b.id)).toLocaleDateString('fr-FR')}` : ''}` }, h('span', { 'aria-hidden': 'true' }, obtenus.has(b.id) ? b.emoji : '·'), b.titre),
+      ),
+    ),
+    h('h2', { class: 'titre-section' }, 'Quiz d’échauffement'),
+    f.quiz?.length
+      ? h(
+          'ul',
+          { class: 'chronologie' },
+          f.quiz.map((q) =>
+            h('li', {}, h('time', {}, new Date(q.fait_le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })), ` ${q.score}/${q.total} `, q.score === q.total ? '🏆' : '', h('small', { class: 'details-quiz' }, ` (${q.details.filter((d) => !d.juste).map((d) => d.ref.split('#')[0]).join(', ') || 'sans faute'})`)),
+          ),
+        )
+      : h('p', { class: 'aide-onglet' }, 'Pas encore de quiz. Il est proposé automatiquement en début de séance (au plus toutes les 6 h) dès 3 missions réussies, ou lance-le avec « 🧩 Quiz » dans l’onglet Direct.'),
     h('h2', { class: 'titre-section' }, 'Séances'),
     f.seances.length
       ? h(
@@ -542,6 +609,29 @@ function ongletPublication(c) {
             lienCopiable(pub.url),
             h('p', { class: 'aide-onglet' }, `Copie publiée ${dateRelative(pub.publieLe)}. C’est une copie figée : les modifications de l’élève n’apparaissent qu’après « Mettre à jour ».`),
             h('div', { class: 'ligne' }, h('a', { class: 'bouton-secondaire', href: pub.url, target: '_blank', rel: 'noopener' }, 'Voir le site ↗'), h('button', { class: 'bouton-principal', onclick: publier }, '🔄 Mettre à jour'), h('button', { class: 'bouton-danger', onclick: depublier }, 'Dépublier')),
+            h('p', { class: 'statut-visites' }, `👀 ${f.visites || 0} visite${(f.visites || 0) > 1 ? 's' : ''} (anonymes, sans doublon dans la journée, robots exclus)`),
+            h(
+              'label',
+              { class: 'interrupteur interrupteur-vitrine' },
+              h('input', {
+                type: 'checkbox',
+                role: 'switch',
+                checked: f.vitrine,
+                onchange: async (e) => {
+                  try {
+                    await api('PUT', `/api/mentor/eleves/${M.selection}/vitrine`, { visible: e.target.checked });
+                    M.fiche.vitrine = e.target.checked;
+                    notifier({ icone: '🖼️', texte: e.target.checked ? 'Site ajouté à la vitrine.' : 'Site retiré de la vitrine.', duree: 2500, type: 'succes' });
+                  } catch (err) {
+                    e.target.checked = !e.target.checked;
+                    notifier({ icone: '⚠️', texte: err.message, type: 'erreur' });
+                  }
+                },
+              }),
+              h('span', { class: 'glissiere', 'aria-hidden': 'true' }),
+              'Afficher dans la ',
+              h('a', { href: '/vitrine', target: '_blank', rel: 'noopener' }, 'vitrine publique'),
+            ),
           ]
         : [
             h('p', { class: 'statut-pub' }, '⚪ Pas encore publié'),
@@ -549,6 +639,7 @@ function ongletPublication(c) {
             h('button', { class: 'bouton-principal', onclick: publier }, '🌍 Publier le site'),
           ],
     ),
+    h('section', { class: 'carte-publication' }, h('h2', {}, '⬇️ Fichiers du site'), h('p', { class: 'aide-onglet' }, 'Le code actuel de l’élève (pas forcément la version publiée), en .zip : index.html, style.css, script.js.'), h('a', { class: 'bouton-secondaire', href: `/api/mentor/eleves/${M.selection}/site.zip` }, 'Télécharger le .zip')),
   );
 }
 
@@ -671,6 +762,9 @@ function connecterTempsReel() {
       e.reussies = fiche.etat.missions.filter((m) => m.statut === 'reussie').length;
       rendreListe();
     }
+  });
+  socket.on('eleve:quiz', ({ score, total }) => {
+    notifier({ icone: '🧩', titre: 'Quiz terminé', texte: `${M.fiche?.eleve.pseudo || 'L’élève'} : ${score}/${total}`, type: score === total ? 'succes' : 'info', duree: 8000 });
   });
   socket.on('eleve:presence', ({ id, enLigne }) => {
     const e = M.eleves.find((x) => x.id === id);

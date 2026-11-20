@@ -1,14 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { calculerEtat, missionParDefaut, assemblerPage, titreDepuisHtml, ligneDebutJs } from '../partage/regles.js';
+import { calculerEtat, missionParDefaut, assemblerPage, titreDepuisHtml, ligneDebutJs, compterProgression } from '../partage/regles.js';
 import { chargerCatalogue, controlerCatalogue } from '../serveur/catalogue.js';
 
 const catalogue = await chargerCatalogue();
 const statut = (etat, id) => etat.missions.find((m) => m.id === id).statut;
 
 describe('Catalogue des missions', () => {
-  it('contient 8 missions HTML, 6 CSS et 5 JS', () => {
-    const n = (mod) => catalogue.missions.filter((m) => m.module === mod).length;
+  it('contient 8 missions HTML, 6 CSS et 5 JS, plus 2 défis bonus par module', () => {
+    const n = (mod, bonus = false) => catalogue.missions.filter((m) => m.module === mod && Boolean(m.bonus) === bonus).length;
     expect([n('html'), n('css'), n('js')]).toEqual([8, 6, 5]);
+    expect([n('html', true), n('css', true), n('js', true)]).toEqual([2, 2, 2]);
+  });
+
+  it('ne livre jamais les réponses du quiz au navigateur', () => {
+    expect(Object.keys(catalogue.quiz).length).toBeGreaterThan(20);
+    expect(JSON.stringify(catalogue.public)).not.toMatch(/"reponse"/);
+    expect(catalogue.public.quiz).toBeUndefined();
+  });
+
+  it('signale une question de quiz mal écrite', () => {
+    const base = { modules: [{ id: 'html', titre: 'HTML' }], missions: [{ id: 'a', module: 'html', titre: 'T', objectif: 'O', explication: 'E', verifications: [{ type: 'console', label: 'l' }] }] };
+    expect(() => controlerCatalogue({ ...base, quiz: { a: [{ question: 'Q', choix: ['x', 'y'], reponse: 2 }] } })).toThrow(/position d’un des choix/);
+    expect(() => controlerCatalogue({ ...base, quiz: { zzz: [] } })).toThrow(/« zzz » n’existe pas/);
   });
 
   it('sérialise les fonctions de test pour le navigateur', () => {
@@ -52,6 +65,18 @@ describe('Déblocages', () => {
     expect(statut(etat, 'js-2')).toBe('disponible');
     expect(statut(etat, 'js-1')).toBe('verrouillee');
     expect(etat.onglets).toEqual(['html', 'css', 'js']);
+  });
+
+  it('les défis bonus s’ouvrent quand le module est fini, sans bloquer la suite', () => {
+    const html = catalogue.missions.filter((m) => m.module === 'html' && !m.bonus).map((m) => m.id);
+    let etat = calculerEtat(catalogue, { 'module:css': 'ouvert' }, html.slice(0, 7));
+    expect(statut(etat, 'html-bonus-1')).toBe('verrouillee');
+    etat = calculerEtat(catalogue, { 'module:css': 'ouvert' }, html);
+    expect(statut(etat, 'html-bonus-1')).toBe('disponible');
+    expect(statut(etat, 'html-bonus-2')).toBe('disponible');
+    expect(statut(etat, 'css-1')).toBe('disponible'); // le CSS n'attend pas les défis
+    expect(missionParDefaut(etat)).toBe('css-1'); // les missions obligatoires passent avant
+    expect(compterProgression(etat)).toEqual({ faites: 8, total: 19, bonusFaits: 0, bonusTotal: 6 });
   });
 
   it('fermer un module verrouille ses missions même réussies', () => {

@@ -59,8 +59,10 @@ export function creerApercu(conteneur, { surMessage, surRechargement, banc = tru
     if (f.cadre !== entrant && f.cadre !== visible) return;
     if (entrant && f.cadre === visible) return;
     if (msg.type === 'scroll') scrollY = msg.y;
-    else if (msg.type === 'pret') e.source.postMessage({ atelier: true, type: 'scroll', y: scrollY }, '*');
-    else surMessage?.(msg, f.infos);
+    else if (msg.type === 'pret') {
+      e.source.postMessage({ atelier: true, type: 'scroll', y: scrollY }, '*');
+      surMessage?.(msg, f.infos);
+    } else surMessage?.(msg, f.infos);
   });
 
   function retirer(cadre) {

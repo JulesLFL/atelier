@@ -29,6 +29,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
     console.log(`\n${signal} reçu, sauvegarde et arrêt…`);
     appli.service.toutEcrire();
+    appli.arreter();
     // io.close() ferme aussi le serveur HTTP.
     appli.temps.io.close(() => {
       appli.bdd.fermer();

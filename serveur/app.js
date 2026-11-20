@@ -12,6 +12,9 @@ import { creerTempsReel } from './temps-reel.js';
 import { routesEleve } from './routes/eleve.js';
 import { routesMentor } from './routes/mentor.js';
 import { routesSite, pageIntrouvable } from './routes/site.js';
+import { creerSauvegardes } from './sauvegarde.js';
+import { creerDiscord } from './discord.js';
+import { creerVerrou } from './verrou.js';
 
 // Politique de sécurité des pages de l'Atelier.
 // Attention : l'aperçu (iframe srcdoc) HÉRITE de cette politique. Le JavaScript de l'élève y est
@@ -32,22 +35,55 @@ const CSP_APP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-export async function creerApplication(config, { front = true, fichierBdd } = {}) {
-  const bdd = ouvrirBdd({ dossier: config.dossierDonnees, secret: config.secretSession, fichier: fichierBdd });
+export async function creerApplication(config, { front = true, fichierBdd, sauvegardesAuto = true } = {}) {
+  const enMemoire = fichierBdd === ':memory:';
+  const discord = creerDiscord(config.webhookDiscord);
+  const sauvegardes = creerSauvegardes({ dossier: config.dossierSauvegardes, cle: config.cleSauvegarde });
+  // Si la structure de la base doit changer, on la sauvegarde AVANT. Si la sauvegarde échoue,
+  // le serveur refuse de démarrer : on ne touche jamais à une base sans filet.
+  const bdd = ouvrirBdd({
+    dossier: config.dossierDonnees,
+    secret: config.secretSession,
+    fichier: fichierBdd,
+    avantMigration: enMemoire ? undefined : (db) => sauvegardes.sauvegarder(db, 'avant-migration'),
+  });
+  if (!enMemoire) {
+    const controle = bdd.db.pragma('quick_check', { simple: true });
+    if (controle !== 'ok') {
+      console.error(`⚠️  Contrôle de la base : ${controle}`);
+      discord.envoyer(`⚠️ La base de l’Atelier semble abîmée (${controle}). Pense à restaurer une sauvegarde.`);
+    }
+  }
   const catalogue = await chargerCatalogue();
   const auth = creerAuth(config, bdd);
-  const service = creerService({ bdd, catalogue, config });
+  const service = creerService({ bdd, catalogue, config, discord });
 
   const app = express();
   const serveur = http.createServer(app);
-  const temps = creerTempsReel(serveur, { bdd, auth, service, catalogue, config });
-  const ctx = { config, bdd, catalogue, auth, service, temps };
+  const temps = creerTempsReel(serveur, { bdd, auth, service, catalogue, config, discord });
+  const ctx = { config, bdd, catalogue, auth, service, temps, sauvegardes, discord };
+
+  // Sauvegarde automatique quotidienne + verrou « serveur en marche » (la restauration le vérifie).
+  const arrets = [];
+  if (!enMemoire) {
+    arrets.push(creerVerrou(config.dossierDonnees));
+    if (sauvegardesAuto) {
+      arrets.push(
+        sauvegardes.planifier(bdd.db, {
+          surErreur: (e) => discord.envoyer(`❌ Sauvegarde automatique de l’Atelier impossible : ${e.message}`),
+        }),
+      );
+    }
+    if (!config.cleSauvegarde) console.warn('⚠️  SAUVEGARDE_CLE absente : les sauvegardes ne sont PAS chiffrées.');
+  }
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // derrière Cloudflare Tunnel
 
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Les élèves sont mineurs : rien de ce site n'est indexé par les moteurs de recherche.
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
     if (!req.path.startsWith('/site/')) {
@@ -86,7 +122,8 @@ export async function creerApplication(config, { front = true, fichierBdd } = {}
     res.status(500).json({ erreur: 'Oups, erreur du serveur.' });
   });
 
-  return { app, serveur, ...ctx };
+  const arreter = () => arrets.forEach((f) => f());
+  return { app, serveur, arreter, ...ctx };
 }
 
 /** Pages de l'interface : en production depuis dist/, en développement via Vite. */

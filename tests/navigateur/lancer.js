@@ -19,6 +19,7 @@ import { RACINE } from '../../serveur/config.js';
 const CAPTURES = path.join(RACINE, 'tests', 'navigateur', 'captures');
 mkdirSync(CAPTURES, { recursive: true });
 let echecs = 0;
+const t2NotesPrivees = (n) => typeof n.texte === 'string' && n.texte.includes('padding et margin');
 const ok = (condition, texte) => {
   console.log(`${condition ? '  ✅' : '  ❌'} ${texte}`);
   if (!condition) echecs++;
@@ -33,7 +34,17 @@ if (!existsSync(path.join(RACINE, 'dist', 'index.html'))) {
 process.env.ATELIER_SANS_DOTENV = '1';
 const dossierDonnees = mkdtempSync(path.join(os.tmpdir(), 'atelier-donnees-'));
 const MDP = 'mentor-test-123';
-const config = chargerConfig({ MENTOR_PASSWORD: MDP, SESSION_SECRET: 's'.repeat(40), DATA_DIR: dossierDonnees, PUBLIC_URL: 'http://127.0.0.1:3999', COOKIE_SECURE: 'false', PORT: '3999' });
+const dossierSauvegardes = mkdtempSync(path.join(os.tmpdir(), 'atelier-sauvegardes-'));
+const config = chargerConfig({
+  MENTOR_PASSWORD: MDP,
+  SESSION_SECRET: 's'.repeat(40),
+  DATA_DIR: dossierDonnees,
+  SAUVEGARDE_DOSSIER: dossierSauvegardes,
+  SAUVEGARDE_CLE: 'cle-de-test-des-sauvegardes-assez-longue',
+  PUBLIC_URL: 'http://127.0.0.1:3999',
+  COOKIE_SECURE: 'false',
+  PORT: '3999',
+});
 const appli = await creerApplication(config);
 await new Promise((r) => appli.serveur.listen(3999, '127.0.0.1', r));
 const BASE = 'http://127.0.0.1:3999';
@@ -123,6 +134,23 @@ try {
   await nav.evaluer("document.querySelector('.victoire .bouton-principal').click()");
   await nav.attendre("document.querySelector('.titre-mission').textContent === 'Présente ton site'", { message: 'passage à la mission 2' });
   ok(true, 'le bouton « Mission suivante » ouvre la mission 2');
+  await nav.attendre("document.querySelector('#compteur-badges').textContent === '1'", { message: 'badge « Premier pas »' });
+  ok(true, 'premier badge gagné (« Premier pas »)');
+
+  // Vérificateur HTML : une balise qui n'existe pas est expliquée et soulignée
+  await nav.evaluer("document.querySelector('#editeur-html .cm-content').focus()");
+  await nav.touches('\uE009', '\uE010'); // Ctrl+Fin
+  await nav.taper('\n<h7>Sous-titre');
+  await nav.attendre("[...document.querySelectorAll('.ligne-html')].some(l => l.textContent.includes('les titres vont de <h1>'))", { message: 'remarque HTML dans la console' });
+  await nav.attendre("document.querySelector('#editeur-html .cm-lintRange-error')", { message: 'erreur soulignée dans l’éditeur' });
+  ok(true, 'une balise inexistante (<h7>) est expliquée dans la console et soulignée dans l’éditeur');
+  await nav.capture(path.join(CAPTURES, '2b-erreur-html.png'));
+
+  // Aperçu « téléphone »
+  await nav.evaluer("document.querySelector('[data-ecran=telephone]').click()");
+  ok(await nav.evaluer("document.querySelector('#cadre-apercu').classList.contains('ecran-telephone')"), 'l’aperçu passe en taille téléphone');
+  await nav.capture(path.join(CAPTURES, '2c-apercu-telephone.png'));
+  await nav.evaluer("document.querySelector('[data-ecran=ordinateur]').click()");
 
   // Le mentor ouvre le JavaScript (via l'API, comme dans le panneau mentor)
   const r = await fetch(`${BASE}/api/mentor/connexion`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Atelier': '1' }, body: JSON.stringify({ motDePasse: MDP }) });
@@ -136,14 +164,34 @@ try {
   const codesRecus = [];
   sm.on('eleve:code', (c) => codesRecus.push(c));
 
+  // Le mentor montre une ligne
+  sm.emit('pointer', { eleveId: eleve.id, onglet: 'html', ligne: 3 });
+  await nav.attendre("document.querySelector('#editeur-html .cm-ligne-montree')", { message: 'ligne surlignée chez l’élève' });
+  ok(true, 'le mentor montre une ligne : elle est surlignée chez l’élève');
+
+  // Quiz lancé par le mentor (il faut 3 missions réussies)
+  for (const id of ['html-2', 'html-3']) await mentorApi('POST', `/api/mentor/eleves/${eleve.id}/missions/${id}/validation`);
+  const reponseQuiz = await mentorApi('POST', `/api/mentor/eleves/${eleve.id}/quiz`);
+  ok(reponseQuiz.ok, 'le mentor lance un quiz');
+  await nav.attendre("document.querySelector('.quiz .bouton-principal')", { message: 'quiz affiché' });
+  await nav.evaluer("document.querySelector('.quiz .bouton-principal').click()");
+  for (let i = 0; i < 3; i++) {
+    await nav.attendre(`document.querySelector('.quiz-avancement')?.textContent.startsWith('Question ${i + 1}')`, { message: `question ${i + 1}` });
+    await nav.evaluer("document.querySelector('.quiz .choix').click()");
+  }
+  await nav.attendre("document.querySelector('.quiz-score')", { message: 'score du quiz' });
+  ok(true, `quiz joué jusqu’au bout (score : ${await nav.evaluer("document.querySelector('.quiz-score').textContent")})`);
+  await nav.capture(path.join(CAPTURES, '2d-quiz.png'));
+  await nav.evaluer("document.querySelector('.quiz .bouton-principal').click()");
+
   await mentorApi('PUT', `/api/mentor/eleves/${eleve.id}/deblocages`, { cible: 'module:js', etat: 'ouvert' });
   await nav.attendre("document.querySelector('#onglet-js')", { message: 'onglet JS apparu sans recharger' });
   ok(true, 'l’onglet JS apparaît dès que le mentor le débloque');
 
   await nav.evaluer("document.querySelector('#onglet-js').click()");
   await nav.taper('bouton.addEventListener("click", f);\nconsole.log(document.cookie);\nconsole.log(parent.document.title);');
-  await nav.attendre("document.querySelector('.erreur-expliquee')", { message: 'erreur affichée' });
-  const erreur = await nav.evaluer("document.querySelector('.erreur-expliquee').textContent");
+  await nav.attendre("document.querySelector('.ligne-console.erreur-expliquee:not(.ligne-html)')", { message: 'erreur affichée' });
+  const erreur = await nav.evaluer("document.querySelector('.ligne-console.erreur-expliquee:not(.ligne-html)').textContent");
   ok(/Je ne connais pas « bouton »/.test(erreur) && /ligne 3 de ton JS/.test(erreur), `erreur expliquée en français : « ${erreur.slice(0, 70)}… »`);
   await nav.capture(path.join(CAPTURES, '3-erreur-js.png'));
 
@@ -208,6 +256,10 @@ try {
   await nav.attendre("document.querySelector('.info-checklist li')", { message: 'checklist de la mission côté mentor' });
   ok(true, 'le mentor voit la checklist de la mission en cours');
   await nav.capture(path.join(CAPTURES, '5-mentor-direct.png'));
+  await nav.evaluer("[...document.querySelectorAll('.grille-direct .onglet-code')].find(b => b.textContent.includes('index.html')).click()");
+  await nav.evaluer("[...document.querySelectorAll('.grille-direct .cm-lineNumbers .cm-gutterElement')].find(g => g.textContent === '1').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))");
+  await nav.attendre("[...document.querySelectorAll('.notif')].some(n => n.textContent.includes('montrée à l’élève'))", { message: 'clic sur un numéro de ligne' });
+  ok(true, 'le mentor clique sur un numéro de ligne pour la montrer');
 
   await nav.evaluer("[...document.querySelectorAll('.onglets-fiche button')].find(b => b.textContent.includes('Parcours')).click()");
   await nav.attendre("document.querySelector('.carte-module.module-css input[type=checkbox]')");
@@ -221,12 +273,60 @@ try {
   await nav.evaluer("document.querySelector('.carte-publication .bouton-principal').click()");
   await nav.attendre("document.querySelector('.statut-pub.en-ligne')", { message: 'site publié' });
   ok(true, 'le mentor publie le site');
+  await nav.evaluer("document.querySelector('.interrupteur-vitrine input').click()");
+  await nav.attendre("[...document.querySelectorAll('.notif')].some(n => n.textContent.includes('ajouté à la vitrine'))", { message: 'vitrine' });
+  ok((await (await fetch(`${BASE}/vitrine`)).text()).includes('/site/alex'), 'le site apparaît dans la vitrine une fois coché');
+
+  await nav.evaluer("[...document.querySelectorAll('.onglets-fiche button')].find(b => b.textContent.includes('Historique')).click()");
+  await nav.attendre("document.querySelector('.version')", { message: 'liste des versions' });
+  await nav.evaluer("document.querySelector('.version').click()");
+  await nav.attendre("document.querySelector('.zone-apercu-version iframe') && !document.querySelector('.zone-apercu-version .bouton-principal').disabled", { message: 'aperçu d’une version' });
+  ok(true, `historique : ${await nav.evaluer("document.querySelectorAll('.version').length")} version(s), aperçu affiché`);
+  await new Promise((r2) => setTimeout(r2, 400));
+  await nav.capture(path.join(CAPTURES, '9-mentor-historique.png'));
+
+  await nav.evaluer("[...document.querySelectorAll('.onglets-fiche button')].find(b => b.textContent.includes('Notes')).click()");
+  await nav.attendre("document.querySelector('.zone-notes')");
+  await nav.evaluer("document.querySelector('.zone-notes').focus()");
+  await nav.taper('Revoir la différence entre padding et margin');
+  await nav.attendre("document.querySelector('.etat-notes').textContent.includes('Enregistré')", { message: 'notes enregistrées' });
+  ok(t2NotesPrivees(await (await mentorApi('GET', `/api/mentor/eleves/${eleve.id}/notes`)).json()), 'les notes privées sont enregistrées automatiquement');
+
+  await nav.evaluer("[...document.querySelectorAll('.onglets-fiche button')].find(b => b.textContent.includes('Progression')).click()");
+  await nav.attendre("document.querySelector('.badges-mentor')");
+  await nav.capture(path.join(CAPTURES, '10-mentor-progression.png'));
+
+  await nav.evaluer("[...document.querySelectorAll('.barre button')].find(b => b.textContent.includes('Système')).click()");
+  await nav.attendre("document.querySelector('.etat-systeme')", { message: 'fenêtre Système' });
+  ok((await nav.evaluer("document.querySelector('.etat-systeme').textContent")).includes('Chiffrées'), 'Système : les sauvegardes sont annoncées chiffrées');
+  await nav.evaluer("[...document.querySelectorAll('.modal button')].find(b => b.textContent.includes('Sauvegarder maintenant')).click()");
+  await nav.attendre("[...document.querySelectorAll('.notif')].some(n => n.textContent.includes('Sauvegarde faite'))", { message: 'sauvegarde manuelle' });
+  await nav.attendre("document.querySelector('.table-sauvegardes')", { message: 'liste des sauvegardes' });
+  ok(appli.sauvegardes.liste().some((x) => x.raison === 'manuel' && x.chiffre), 'sauvegarde manuelle chiffrée créée depuis le panneau');
+  await nav.capture(path.join(CAPTURES, '11-mentor-systeme.png'));
   const pub = await fetch(`${BASE}/site/alex`);
   ok(pub.status === 200 && /^sandbox allow-scripts/.test(pub.headers.get('content-security-policy')), 'le site publié est servi en sandbox (CSP)');
   await nav.aller(`${BASE}/site/alex`);
   const cookieVisible = await nav.evaluer('(() => { try { return document.cookie; } catch (e) { return "BLOQUÉ"; } })()');
   ok(cookieVisible === 'BLOQUÉ' || cookieVisible === '', 'le JS du site publié ne peut pas lire les cookies du mentor');
   ok((await nav.evaluer("document.querySelector('h1').textContent")) === 'Le repaire des gamers', 'le site publié affiche la page de l’élève');
+
+  // Côté élève : « Mon site » (QR code, visites, téléchargement)
+  await fetch(`${BASE}/site/alex`, { headers: { 'User-Agent': 'Mozilla/5.0 (visiteur de test)', 'CF-Connecting-IP': '9.9.9.9' } });
+  await nav.aller(`${BASE}/`);
+  await nav.attendre("document.querySelector('#bouton-mon-site')");
+  await nav.evaluer("document.querySelector('#bouton-mon-site').click()");
+  await nav.attendre("document.querySelector('canvas.qr')", { message: 'QR code' });
+  const visites = await nav.evaluer("document.querySelector('.visites').textContent");
+  ok(/👀 [12] visite/.test(visites), `« Mon site » : QR code, lien et compteur (${visites})`);
+  ok((await nav.evaluer("document.querySelector('.modal a[download]').getAttribute('href')")) === '/api/eleve/site.zip', 'bouton de téléchargement du .zip');
+  await nav.capture(path.join(CAPTURES, '12-mon-site.png'));
+  await nav.evaluer("document.querySelector('#bouton-badges') && (document.querySelector('.fond-modal').remove(), document.querySelector('#bouton-badges').click())");
+  await nav.attendre("document.querySelector('.grille-badges')", { message: 'fenêtre des badges' });
+  await nav.capture(path.join(CAPTURES, '13-badges.png'));
+  await nav.aller(`${BASE}/vitrine`);
+  await new Promise((r2) => setTimeout(r2, 800));
+  await nav.capture(path.join(CAPTURES, '14-vitrine.png'));
 
   const erreursApp = nav.journal.filter((j) => j.level === 'error' && !/about:srcdoc/.test(j.source?.context || '') && !/atelier|bouton|cookie|parent|Boucle|Cross-Origin Request Blocked/i.test(j.text));
   ok(erreursApp.length === 0, `aucune erreur JS dans l’application elle-même${erreursApp.length ? ' : ' + erreursApp.map((e) => e.text).join(' | ') : ''}`);
@@ -238,7 +338,9 @@ try {
   await nav.fermer();
   serveurHarnais.close();
   appli.temps.io.close();
+  appli.arreter();
   rmSync(dossierDonnees, { recursive: true, force: true });
+  rmSync(dossierSauvegardes, { recursive: true, force: true });
 }
 
 console.log(echecs ? `\n❌ ${echecs} échec(s)` : '\n✅ Tous les tests navigateur passent');

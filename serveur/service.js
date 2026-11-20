@@ -1,7 +1,13 @@
 // Logique métier commune aux routes HTTP et au temps réel.
 import { calculerEtat, missionAccessible, missionParDefaut } from '../partage/regles.js';
+import { BADGES, BADGES_SIGNALES, badgesMerites } from './badges.js';
+import { creerGestionQuiz } from './quiz.js';
 
-export function creerService({ bdd, catalogue, config }) {
+const QUIZ_INTERVALLE_MS = 6 * 3600 * 1000; // au plus un quiz proposé automatiquement toutes les 6 h
+
+export function creerService({ bdd, catalogue, config, discord }) {
+  const gestionQuiz = creerGestionQuiz();
+  const alerte = (texte) => discord?.envoyer(texte);
   // Code en cours de frappe, gardé en mémoire puis écrit en base par paquets.
   const enAttente = new Map(); // eleveId -> { code, minuterie }
   const DELAI_ECRITURE_MS = 1500;
@@ -69,6 +75,8 @@ export function creerService({ bdd, catalogue, config }) {
       missionCourante: missionCourante(eleve, etat),
       progression: progressionParMission(eleveId),
       publication: pub ? { url: urlSite(eleve.pseudo), publieLe: pub.publie_le } : null,
+      visites: eleve.visites,
+      badges: bdd.succes(eleveId),
     };
   }
 
@@ -91,6 +99,8 @@ export function creerService({ bdd, catalogue, config }) {
       seances: bdd.seances(eleveId),
       messages: bdd.messages(eleveId),
       urlSite: urlSite(eleve.pseudo),
+      vitrine: Boolean(eleve.vitrine),
+      quiz: bdd.quiz(eleveId, 10),
     };
   }
 
@@ -106,11 +116,84 @@ export function creerService({ bdd, catalogue, config }) {
   function reussirMission(eleveId, missionId, parMentor = false) {
     const etat = etatDeblocage(eleveId);
     if (!parMentor && !missionAccessible(etat, missionId)) return false;
+    const dejaFaites = bdd.missionsReussies(eleveId);
     bdd.reussirMission(eleveId, missionId, parMentor);
+    // Alerte Discord quand un module (ses missions obligatoires) vient d'être terminé.
+    const mission = catalogue.missions.find((m) => m.id === missionId);
+    if (mission && !dejaFaites.has(missionId)) {
+      const faites = bdd.missionsReussies(eleveId);
+      const obligatoires = catalogue.missions.filter((m) => m.module === mission.module && !m.bonus);
+      const module = catalogue.modules.find((m) => m.id === mission.module);
+      if (!mission.bonus && obligatoires.every((m) => faites.has(m.id))) {
+        alerte(`🏁 **${bdd.eleveParId(eleveId).pseudo}** a terminé le module ${module.emoji} ${module.titre} !`);
+      }
+    }
     return true;
   }
 
+  // --- Badges ------------------------------------------------------------------
+  /** Attribue les badges mérités. Renvoie ceux qui viennent d'être gagnés (pour la notification). */
+  function attribuerBadges(eleveId) {
+    const eleve = bdd.eleveParId(eleveId);
+    if (!eleve) return [];
+    const merites = badgesMerites({
+      catalogue,
+      reussies: bdd.missionsReussies(eleveId),
+      progression: progressionParMission(eleveId),
+      publie: Boolean(bdd.publication(eleveId)),
+      visites: eleve.visites,
+      seances: bdd.nombreSeances(eleveId),
+      quizParfait: bdd.quiz(eleveId, 50).some((q) => q.score === q.total),
+    });
+    return merites.filter((id) => bdd.ajouterSucces(eleveId, id)).map((id) => BADGES.find((b) => b.id === id));
+  }
+
+  /** Badge signalé par le navigateur (seulement ceux de la liste autorisée). */
+  function badgeSignale(eleveId, badge) {
+    if (!BADGES_SIGNALES.has(badge)) return [];
+    return bdd.ajouterSucces(eleveId, badge) ? [BADGES.find((b) => b.id === badge)] : [];
+  }
+
+  // --- Quiz ----------------------------------------------------------------------
+  /** Propose un quiz (au plus toutes les 6 h, sauf si le mentor le lance : force). */
+  function proposerQuiz(eleveId, { force = false } = {}) {
+    const eleve = bdd.eleveParId(eleveId);
+    if (!eleve) return null;
+    if (!force && eleve.quiz_propose_le && Date.now() - eleve.quiz_propose_le < QUIZ_INTERVALLE_MS) return null;
+    const quiz = gestionQuiz.generer(eleveId, catalogue.quiz, bdd.missionsReussies(eleveId));
+    if (quiz) bdd.noterQuizPropose(eleveId);
+    return quiz;
+  }
+
+  function repondreQuiz(eleveId, quizId, reponses) {
+    const resultat = gestionQuiz.corriger(eleveId, quizId, reponses);
+    if (!resultat) return null;
+    bdd.ajouterQuiz(eleveId, resultat.score, resultat.total, resultat.corrections.map(({ ref, juste }) => ({ ref, juste })));
+    alerte(`🧩 **${bdd.eleveParId(eleveId).pseudo}** a fait le quiz d’échauffement : ${resultat.score}/${resultat.total}.`);
+    return resultat;
+  }
+
+  /** Au début de chaque séance (plus de 30 min sans version), on garde une copie du site. */
+  function versionDeSeance(eleveId) {
+    const derniere = bdd.versions(eleveId)[0];
+    if (derniere && Date.now() - derniere.cree_le < 30 * 60 * 1000) return null;
+    ecrireMaintenant(eleveId);
+    return bdd.ajouterVersion(eleveId, 'seance');
+  }
+
+  /** Remet une ancienne version : la mémoire tampon est vidée d'abord pour ne rien perdre. */
+  function restaurerVersion(eleveId, versionId) {
+    ecrireMaintenant(eleveId);
+    return bdd.restaurerVersion(eleveId, versionId);
+  }
+
   return {
+    attribuerBadges,
+    badgeSignale,
+    proposerQuiz,
+    repondreQuiz,
+    versionDeSeance,
+    restaurerVersion,
     etatDeblocage,
     etatEleve,
     ficheMentor,

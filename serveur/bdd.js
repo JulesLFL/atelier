@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const MIGRATIONS = [
+export const MIGRATIONS = [
   // Version 1
   `
   CREATE TABLE eleves (
@@ -70,7 +70,44 @@ const MIGRATIONS = [
     publie_le INTEGER NOT NULL
   );
   `,
+  // Version 2 : historique, notes du mentor, badges, quiz, visites, vitrine
+  `
+  CREATE TABLE versions (
+    id        INTEGER PRIMARY KEY,
+    eleve_id  INTEGER NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
+    html TEXT NOT NULL, css TEXT NOT NULL, js TEXT NOT NULL,
+    empreinte TEXT NOT NULL,          -- SHA-256 du code : évite les doublons
+    raison    TEXT NOT NULL,          -- 'seance', 'publication', 'avant-restauration', 'manuel'
+    cree_le   INTEGER NOT NULL
+  );
+  CREATE INDEX versions_eleve ON versions(eleve_id, cree_le);
+  CREATE TABLE notes (
+    eleve_id INTEGER PRIMARY KEY REFERENCES eleves(id) ON DELETE CASCADE,
+    texte    TEXT NOT NULL,
+    maj_le   INTEGER NOT NULL
+  );
+  CREATE TABLE succes (
+    eleve_id  INTEGER NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
+    badge     TEXT NOT NULL,
+    obtenu_le INTEGER NOT NULL,
+    PRIMARY KEY (eleve_id, badge)
+  );
+  CREATE TABLE quiz (
+    id       INTEGER PRIMARY KEY,
+    eleve_id INTEGER NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
+    fait_le  INTEGER NOT NULL,
+    score    INTEGER NOT NULL,
+    total    INTEGER NOT NULL,
+    details  TEXT NOT NULL            -- JSON : [{ question, bonne }]
+  );
+  CREATE INDEX quiz_eleve ON quiz(eleve_id, fait_le);
+  ALTER TABLE eleves ADD COLUMN visites INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE eleves ADD COLUMN vitrine INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE eleves ADD COLUMN quiz_propose_le INTEGER;
+  `,
 ];
+
+const VERSIONS_MAX = 60; // versions gardées par élève
 
 // Une pause de plus de 30 minutes démarre une nouvelle séance.
 const ECART_NOUVELLE_SEANCE_MS = 30 * 60 * 1000;
@@ -85,10 +122,9 @@ const CODE_INITIAL = {
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 export function genererCodeAcces() {
-  const octets = crypto.randomBytes(12);
   let code = '';
   for (let i = 0; i < 12; i++) {
-    code += ALPHABET[octets[i] % ALPHABET.length];
+    code += ALPHABET[crypto.randomInt(ALPHABET.length)]; // tirage uniforme, sans biais
     if (i === 3 || i === 7) code += '-';
   }
   return code; // ex. K7QF-29XM-HD4P (≈ 59 bits d'aléa)
@@ -100,7 +136,7 @@ export function normaliserCode(code) {
   return `${brut.slice(0, 4)}-${brut.slice(4, 8)}-${brut.slice(8)}`;
 }
 
-export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db' }) {
+export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigration }) {
   let db;
   if (fichier === ':memory:') {
     db = new Database(':memory:');
@@ -113,6 +149,8 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db' }) {
   db.pragma('busy_timeout = 5000');
 
   const version = db.pragma('user_version', { simple: true });
+  // Base existante qui va changer de structure : on la sauvegarde d'abord.
+  if (version > 0 && version < MIGRATIONS.length) avantMigration?.(db, version);
   for (let v = version; v < MIGRATIONS.length; v++) {
     db.transaction(() => {
       db.exec(MIGRATIONS[v]);
@@ -131,7 +169,7 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db' }) {
     eleveParPseudo: db.prepare('SELECT * FROM eleves WHERE pseudo = ?'),
     eleveParCode: db.prepare('SELECT * FROM eleves WHERE code_hash = ?'),
     listeEleves: db.prepare(`
-      SELECT e.id, e.pseudo, e.cree_le, e.derniere_activite, e.temps_actif_s, e.mission_courante,
+      SELECT e.id, e.pseudo, e.cree_le, e.derniere_activite, e.temps_actif_s, e.mission_courante, e.visites, e.vitrine,
              (SELECT COUNT(*) FROM progression p WHERE p.eleve_id = e.id AND p.reussie_le IS NOT NULL) AS reussies,
              (SELECT publie_le FROM publications pu WHERE pu.eleve_id = e.id) AS publie_le
       FROM eleves e ORDER BY e.pseudo`),
@@ -182,7 +220,34 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db' }) {
         onglets = excluded.onglets, publie_le = excluded.publie_le`),
     depublier: db.prepare('DELETE FROM publications WHERE eleve_id = ?'),
     publication: db.prepare('SELECT html, css, js, onglets, publie_le FROM publications WHERE eleve_id = ?'),
+
+    derniereVersion: db.prepare('SELECT empreinte FROM versions WHERE eleve_id = ? ORDER BY cree_le DESC, id DESC LIMIT 1'),
+    ajouterVersion: db.prepare('INSERT INTO versions (eleve_id, html, css, js, empreinte, raison, cree_le) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    elaguerVersions: db.prepare(`DELETE FROM versions WHERE eleve_id = ? AND id NOT IN
+      (SELECT id FROM versions WHERE eleve_id = ? ORDER BY cree_le DESC, id DESC LIMIT ${VERSIONS_MAX})`),
+    versions: db.prepare(`SELECT id, raison, cree_le, length(html) + length(css) + length(js) AS taille
+      FROM versions WHERE eleve_id = ? ORDER BY cree_le DESC, id DESC`),
+    version: db.prepare('SELECT id, html, css, js, raison, cree_le FROM versions WHERE eleve_id = ? AND id = ?'),
+
+    note: db.prepare('SELECT texte, maj_le FROM notes WHERE eleve_id = ?'),
+    ecrireNote: db.prepare(`INSERT INTO notes (eleve_id, texte, maj_le) VALUES (?, ?, ?)
+      ON CONFLICT (eleve_id) DO UPDATE SET texte = excluded.texte, maj_le = excluded.maj_le`),
+
+    succes: db.prepare('SELECT badge, obtenu_le FROM succes WHERE eleve_id = ? ORDER BY obtenu_le'),
+    ajouterSucces: db.prepare('INSERT OR IGNORE INTO succes (eleve_id, badge, obtenu_le) VALUES (?, ?, ?)'),
+
+    ajouterQuiz: db.prepare('INSERT INTO quiz (eleve_id, fait_le, score, total, details) VALUES (?, ?, ?, ?, ?)'),
+    quiz: db.prepare('SELECT id, fait_le, score, total, details FROM quiz WHERE eleve_id = ? ORDER BY fait_le DESC LIMIT ?'),
+    quizPropose: db.prepare('UPDATE eleves SET quiz_propose_le = ? WHERE id = ?'),
+    nombreSeances: db.prepare('SELECT COUNT(*) AS n FROM seances WHERE eleve_id = ?'),
+
+    ajouterVisite: db.prepare('UPDATE eleves SET visites = visites + 1 WHERE id = ?'),
+    vitrine: db.prepare('UPDATE eleves SET vitrine = ? WHERE id = ?'),
+    listeVitrine: db.prepare(`SELECT e.pseudo, p.html, p.publie_le FROM eleves e JOIN publications p ON p.eleve_id = e.id
+      WHERE e.vitrine = 1 ORDER BY p.publie_le DESC`),
   };
+
+  const empreinteCode = ({ html, css, js }) => crypto.createHash('sha256').update(JSON.stringify([html, css, js])).digest('hex');
 
   return {
     db,
@@ -271,5 +336,55 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db' }) {
     },
     depublier: (id) => q.depublier.run(id).changes > 0,
     publication: (id) => q.publication.get(id),
+
+    // --- Historique des versions du site -----------------------------------
+    /** Enregistre le code actuel (ou celui fourni). Ne fait rien s'il est identique à la dernière version. */
+    ajouterVersion(id, raison, code = q.projet.get(id)) {
+      if (!code) return null;
+      const empreinte = empreinteCode(code);
+      if (q.derniereVersion.get(id)?.empreinte === empreinte) return null;
+      return db.transaction(() => {
+        const { lastInsertRowid } = q.ajouterVersion.run(id, code.html, code.css, code.js, empreinte, raison, maintenant());
+        q.elaguerVersions.run(id, id);
+        return Number(lastInsertRowid);
+      })();
+    },
+    versions: (id) => q.versions.all(id),
+    version: (id, versionId) => q.version.get(id, versionId),
+    /** Remet une ancienne version (le code actuel est d'abord gardé dans l'historique). */
+    restaurerVersion(id, versionId) {
+      return db.transaction(() => {
+        const v = q.version.get(id, versionId);
+        if (!v) return null;
+        const actuel = q.projet.get(id);
+        const empreinte = empreinteCode(actuel);
+        if (q.derniereVersion.get(id)?.empreinte !== empreinte) {
+          q.ajouterVersion.run(id, actuel.html, actuel.css, actuel.js, empreinte, 'avant-restauration', maintenant());
+        }
+        q.majProjet.run(v.html, v.css, v.js, maintenant(), id);
+        q.elaguerVersions.run(id, id);
+        return { html: v.html, css: v.css, js: v.js };
+      })();
+    },
+
+    // --- Notes privées du mentor ----------------------------------------------
+    note: (id) => q.note.get(id) || { texte: '', maj_le: null },
+    ecrireNote: (id, texte) => q.ecrireNote.run(id, texte, maintenant()),
+
+    // --- Badges -------------------------------------------------------------------
+    succes: (id) => q.succes.all(id),
+    /** true si le badge vient d'être gagné (false s'il l'était déjà). */
+    ajouterSucces: (id, badge) => q.ajouterSucces.run(id, badge, maintenant()).changes > 0,
+
+    // --- Quiz ---------------------------------------------------------------------
+    ajouterQuiz: (id, score, total, details) => q.ajouterQuiz.run(id, maintenant(), score, total, JSON.stringify(details)),
+    quiz: (id, limite = 20) => q.quiz.all(id, limite).map((r) => ({ ...r, details: JSON.parse(r.details) })),
+    noterQuizPropose: (id) => q.quizPropose.run(maintenant(), id),
+    nombreSeances: (id) => q.nombreSeances.get(id).n,
+
+    // --- Visites et vitrine ---------------------------------------------------------
+    ajouterVisite: (id) => q.ajouterVisite.run(id),
+    definirVitrine: (id, visible) => q.vitrine.run(visible ? 1 : 0, id),
+    listeVitrine: () => q.listeVitrine.all(),
   };
 }

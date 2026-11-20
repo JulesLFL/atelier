@@ -5,6 +5,8 @@
 //   la première est disponible, la suivante le devient quand la précédente est réussie.
 // - Le mentor peut forcer une mission précise : « ouvert » ou « ferme ».
 // - Une mission déjà réussie reste toujours accessible (pour revenir dessus).
+// - Les défis bonus (bonus: true) ne bloquent jamais la suite : ils s'ouvrent tous en même
+//   temps quand toutes les missions obligatoires de leur module sont réussies.
 
 export const MODULES_OUVERTS_PAR_DEFAUT = ['html'];
 
@@ -26,10 +28,13 @@ export function calculerEtat(catalogue, deblocages = {}, reussies = []) {
   const missions = [];
   for (const m of catalogue.modules) {
     const duModule = catalogue.missions.filter((x) => x.module === m.id);
-    duModule.forEach((mission, index) => {
+    const obligatoires = duModule.filter((x) => !x.bonus);
+    const moduleFini = obligatoires.every((x) => faites.has(x.id));
+    duModule.forEach((mission) => {
       const force = deblocages[`mission:${mission.id}`];
       const reussie = faites.has(mission.id);
-      const precedenteFaite = index === 0 || faites.has(duModule[index - 1].id);
+      const index = obligatoires.indexOf(mission);
+      const precedenteFaite = mission.bonus ? moduleFini : index === 0 || faites.has(obligatoires[index - 1].id);
       let accessible;
       if (force === 'ferme') accessible = false;
       else if (force === 'ouvert') accessible = true;
@@ -39,6 +44,7 @@ export function calculerEtat(catalogue, deblocages = {}, reussies = []) {
         module: m.id,
         statut: !accessible ? 'verrouillee' : reussie ? 'reussie' : 'disponible',
         force: force || null,
+        bonus: Boolean(mission.bonus),
       });
     });
   }
@@ -52,16 +58,28 @@ export function calculerEtat(catalogue, deblocages = {}, reussies = []) {
   return { modules, missions, onglets };
 }
 
+/** Compteurs de progression : missions obligatoires et défis bonus séparés. */
+export function compterProgression(etat) {
+  const obligatoires = etat.missions.filter((m) => !m.bonus);
+  const bonus = etat.missions.filter((m) => m.bonus);
+  return {
+    faites: obligatoires.filter((m) => m.statut === 'reussie').length,
+    total: obligatoires.length,
+    bonusFaits: bonus.filter((m) => m.statut === 'reussie').length,
+    bonusTotal: bonus.length,
+  };
+}
+
 export function missionAccessible(etat, missionId) {
   const m = etat.missions.find((x) => x.id === missionId);
   return Boolean(m && m.statut !== 'verrouillee');
 }
 
-/** Mission à proposer par défaut : la première disponible non réussie, sinon la dernière accessible. */
+/** Mission à proposer par défaut : la première disponible non réussie (les obligatoires d'abord), sinon la dernière accessible. */
 export function missionParDefaut(etat) {
-  const dispo = etat.missions.find((m) => m.statut === 'disponible');
+  const dispo = etat.missions.find((m) => m.statut === 'disponible' && !m.bonus) || etat.missions.find((m) => m.statut === 'disponible');
   if (dispo) return dispo.id;
-  const accessibles = etat.missions.filter((m) => m.statut !== 'verrouillee');
+  const accessibles = etat.missions.filter((m) => m.statut !== 'verrouillee' && !m.bonus);
   return accessibles.length ? accessibles[accessibles.length - 1].id : null;
 }
 
@@ -128,4 +146,27 @@ export function ligneDebutJs(page) {
   const i = page.indexOf('<script id="atelier-js">');
   if (i < 0) return null;
   return page.slice(0, i).split('\n').length + 1;
+}
+
+/** Version « fichiers séparés » (pour le .zip) : index.html qui appelle style.css et script.js. */
+export function assemblerPageFichiers(code, onglets = ['html', 'css', 'js']) {
+  const titre = echapperHtml(titreDepuisHtml(code.html || ''));
+  return [
+    '<!DOCTYPE html>',
+    '<html lang="fr">',
+    '<head>',
+    '  <meta charset="utf-8">',
+    '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+    `  <title>${titre}</title>`,
+    onglets.includes('css') ? '  <link rel="stylesheet" href="style.css">' : '',
+    '</head>',
+    '<body>',
+    code.html || '',
+    onglets.includes('js') ? '<script src="script.js"></script>' : '',
+    '</body>',
+    '</html>',
+    '',
+  ]
+    .filter((l, i, t) => l !== '' || i === t.length - 1)
+    .join('\n');
 }
