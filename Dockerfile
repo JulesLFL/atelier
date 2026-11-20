@@ -24,7 +24,10 @@ COPY package.json ./
 COPY serveur ./serveur
 COPY partage ./partage
 COPY contenu ./contenu
-RUN mkdir -p /data && chown node:node /data
+# Les fichiers peuvent arriver avec des droits restrictifs (clone fait par Portainer avec un
+# umask 077 : « -rw------- root »). On les rend lisibles par tous, sans les rendre modifiables :
+# l'utilisateur « node » peut lire l'application mais pas la changer.
+RUN chmod -R a+rX /app && mkdir -p /data && chown node:node /data
 # L'application ne tourne pas en root
 USER node
 VOLUME /data
