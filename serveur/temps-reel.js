@@ -122,6 +122,13 @@ export function creerTempsReel(serveurHttp, { bdd, auth, service, catalogue, con
       if (ok) apresAccord();
     });
 
+    // Charte lue et acceptée à la première connexion (la date est gardée).
+    socket.on('charte:accepter', (rappel) => {
+      bdd.accepterCharte(id);
+      repondre(rappel, { ok: true });
+      etatPourMentor(id);
+    });
+
     // Badges d'exploration signalés par le navigateur (liste fermée, côté serveur).
     socket.on('badge:evenement', (badge) => {
       if (typeof badge === 'string') annoncerBadges(service.badgeSignale(id, badge));

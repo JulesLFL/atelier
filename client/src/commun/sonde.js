@@ -134,9 +134,9 @@
       var ombre = hote.attachShadow({ mode: 'closed' });
       ombre.innerHTML =
         '<style>:host{all:initial}div{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:2147483647;' +
-        'max-width:min(90vw,420px);background:#1c2230;color:#f2f4f8;border:1px solid #8b5cf6;border-radius:12px;' +
+        'max-width:min(90vw,420px);background:#1c2230;color:#f2f4f8;border:1px solid #f97316;border-radius:12px;' +
         'padding:12px 16px;font:15px/1.4 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.45);white-space:pre-wrap}' +
-        'small{display:block;color:#a5abbd;font-size:12px;margin-bottom:4px}button{margin-top:10px;background:#8b5cf6;color:#fff;border:0;' +
+        'small{display:block;color:#a5abbd;font-size:12px;margin-bottom:4px}button{margin-top:10px;background:#f97316;color:#1c1310;border:0;' +
         'border-radius:8px;padding:6px 14px;font:inherit;cursor:pointer}</style><div role="alertdialog"><small>alert()</small><span></span><br><button>OK</button></div>';
       ombre.querySelector('button').addEventListener('click', function () { hote.remove(); });
       bulle = { hote: hote, texte: ombre.querySelector('span') };

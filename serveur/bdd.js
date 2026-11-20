@@ -110,6 +110,11 @@ export const MIGRATIONS = [
   ALTER TABLE eleves ADD COLUMN accord_publication INTEGER;
   ALTER TABLE eleves ADD COLUMN accord_vitrine INTEGER;
   `,
+  // Version 4 : information des parents (date), charte acceptée par l'élève (date)
+  `
+  ALTER TABLE eleves ADD COLUMN parents_informes INTEGER;
+  ALTER TABLE eleves ADD COLUMN charte_acceptee INTEGER;
+  `,
 ];
 
 const VERSIONS_MAX = 60; // versions gardées par élève
@@ -249,6 +254,9 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     ajouterVisite: db.prepare('UPDATE eleves SET visites = visites + 1 WHERE id = ?'),
     vitrine: db.prepare('UPDATE eleves SET vitrine = ? WHERE id = ?'),
     accords: db.prepare('UPDATE eleves SET accord_publication = ?, accord_vitrine = ? WHERE id = ?'),
+    parentsInformes: db.prepare('UPDATE eleves SET parents_informes = ? WHERE id = ?'),
+    charte: db.prepare('UPDATE eleves SET charte_acceptee = COALESCE(charte_acceptee, ?) WHERE id = ?'),
+    inactifs: db.prepare('SELECT id, pseudo, derniere_activite FROM eleves WHERE COALESCE(derniere_activite, cree_le) < ? ORDER BY pseudo'),
     listeVitrine: db.prepare(`SELECT e.pseudo, p.html, p.publie_le FROM eleves e JOIN publications p ON p.eleve_id = e.id
       WHERE e.vitrine = 1 ORDER BY p.publie_le DESC`),
   };
@@ -393,6 +401,33 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     definirVitrine: (id, visible) => q.vitrine.run(visible ? 1 : 0, id),
     /** Accords de l'élève (date, ou null s'il n'a pas donné / a retiré son accord). */
     definirAccords: (id, { publication, vitrine }) => q.accords.run(publication ?? null, vitrine ?? null, id),
+    definirParentsInformes: (id, date) => q.parentsInformes.run(date ?? null, id),
+    accepterCharte: (id) => q.charte.run(maintenant(), id),
+    /** Élèves sans activité depuis plus de « jours » jours. */
+    inactifs: (jours = 365) => q.inactifs.all(maintenant() - jours * 86400000),
+
+    /** Toutes les données d'un élève (droit d'accès et portabilité). Jamais l'empreinte du code d'accès. */
+    exporter(id) {
+      const e = q.eleveParId.get(id);
+      if (!e) return null;
+      const { code_hash, epoque_session, ...eleve } = e;
+      const tout = (sql) => db.prepare(sql).all(id);
+      return {
+        exporte_le: new Date().toISOString(),
+        format: 'L’Atelier, export des données d’un élève (dates en millisecondes depuis 1970)',
+        eleve,
+        projet: q.projet.get(id),
+        versions: tout('SELECT id, raison, cree_le, html, css, js FROM versions WHERE eleve_id = ? ORDER BY cree_le'),
+        progression: tout('SELECT mission_id, reussie_le, indices_utilises, validee_par_mentor FROM progression WHERE eleve_id = ?'),
+        deblocages: tout('SELECT cible, etat FROM deblocages WHERE eleve_id = ?'),
+        seances: tout('SELECT debut, fin, actif_s FROM seances WHERE eleve_id = ? ORDER BY debut'),
+        messages: tout('SELECT type, texte, envoye_le, lu_le FROM messages WHERE eleve_id = ? ORDER BY envoye_le'),
+        notes_du_mentor: q.note.get(id) || null,
+        badges: tout('SELECT badge, obtenu_le FROM succes WHERE eleve_id = ?'),
+        quiz: tout('SELECT fait_le, score, total, details FROM quiz WHERE eleve_id = ? ORDER BY fait_le'),
+        publication: q.publication.get(id) || null,
+      };
+    },
     listeVitrine: () => q.listeVitrine.all(),
   };
 }

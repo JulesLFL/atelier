@@ -132,9 +132,17 @@ export async function ongletNotes(c, { M }) {
 export async function verifierSysteme(el) {
   if (!el) return;
   try {
-    const s = await api('GET', '/api/mentor/sauvegardes');
+    const [s, systeme] = await Promise.all([api('GET', '/api/mentor/sauvegardes'), api('GET', '/api/mentor/systeme')]);
     const vieille = s.derniereAuto && Date.now() - s.derniereAuto > 48 * 3600 * 1000;
-    const probleme = s.erreur ? 'Dernière sauvegarde en échec' : vieille ? 'Pas de sauvegarde depuis 2 jours' : !s.chiffrement ? 'Sauvegardes non chiffrées' : null;
+    const probleme = s.erreur
+      ? 'Dernière sauvegarde en échec'
+      : vieille
+        ? 'Pas de sauvegarde depuis 2 jours'
+        : !s.chiffrement
+          ? 'Sauvegardes non chiffrées'
+          : systeme.inactifs.length
+            ? `💤 ${systeme.inactifs.length} compte(s) inactif(s) depuis 1 an`
+            : null;
     vider(el, probleme && h('button', { class: 'alerte-systeme', onclick: () => ouvrirSysteme(el) }, `⚠️ ${probleme}`));
   } catch {
     /* rien */
@@ -211,6 +219,10 @@ export async function ouvrirSysteme(alerte = document.getElementById('alerte-sys
       commande('docker start atelier'),
       h('p', {}, 'La base actuelle est d’abord mise de côté (sauvegarde « avant-restauration »). Détails dans le README.'),
     ),
+    h('h3', { class: 'titre-section' }, '💤 Comptes inactifs depuis plus d’un an'),
+    systeme.inactifs.length
+      ? h('p', {}, `À supprimer (engagement de la politique de confidentialité) : ${systeme.inactifs.map((e) => e.pseudo).join(', ')}. Pense à exporter leurs données ou leur site avant, si besoin.`)
+      : h('p', {}, 'Aucun.'),
     h('h3', { class: 'titre-section' }, '🔔 Alertes Discord'),
     h('p', {}, systeme.discord ? 'Activées : connexion d’un élève seul, module terminé, quiz, sauvegarde en échec.' : 'Désactivées. Ajoute la variable DISCORD_WEBHOOK_URL pour les activer (voir README).'),
     boutonDiscord,

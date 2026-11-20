@@ -4,33 +4,37 @@
    =================================================================== */
 :root {
   color-scheme: dark;
-  --fond: #0b0e14;
-  --surface: #121620;
-  --surface-2: #181d29;
-  --surface-3: #212839;
-  --bord: #2a3142;
-  --bord-fort: #3a4358;
-  --texte: #e8ebf3;
-  --texte-doux: #a7afc2;
-  --texte-pale: #8a93a8;
-  --accent: #7c3aed;
-  --accent-vif: #8b5cf6;
-  --accent-clair: #c4b5fd;
+  /* Sombre « établi » : des bruns très foncés plutôt qu'un bleu-noir générique */
+  --fond: #12100e;
+  --surface: #1a1714;
+  --surface-2: #211d19;
+  --surface-3: #2b2621;
+  --bord: #372f28;
+  --bord-fort: #4a4037;
+  --texte: #f3ede4;
+  --texte-doux: #bdb2a3;
+  --texte-pale: #9d9282;
+  /* L'accent : l'orange du HTML (texte sombre dessus, pour le contraste) */
+  --accent: #f97316;
+  --accent-vif: #fb923c;
+  --accent-clair: #fdba74;
+  --sur-accent: #1c1310;
   --succes: #34d399;
   --succes-fond: #0f2e25;
   --alerte: #fbbf24;
   --alerte-fond: #2e2410;
   --erreur: #f87171;
   --erreur-fond: #2f1518;
-  --info: #38bdf8;
+  --info: #60a5fa;
   --html: #fb923c;
-  --css: #38bdf8;
+  --css: #60a5fa;
   --js: #facc15;
-  --editeur-fond: #0f131b;
+  --editeur-fond: #15120f;
   --rayon: 12px;
   --rayon-petit: 8px;
   --ombre: 0 18px 50px rgb(0 0 0 / 0.5);
-  --police-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --police-ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --police-titre: 'Bricolage Grotesque Variable', 'Atkinson Hyperlegible', system-ui, sans-serif;
   --police-code: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', Consolas, 'DejaVu Sans Mono', monospace;
   --taille-code: 16px;
 }
@@ -132,13 +136,12 @@ code {
 
 .bouton-principal {
   background: var(--accent);
-  color: #fff;
-  font-weight: 650;
+  color: var(--sur-accent);
+  font-weight: 700;
   padding: 0.6em 1.15em;
-  box-shadow: 0 4px 18px rgb(124 58 237 / 0.35);
 }
 .bouton-principal:hover {
-  background: #6d28d9;
+  background: var(--accent-vif);
 }
 .bouton-principal:disabled {
   opacity: 0.6;
@@ -374,4 +377,29 @@ code {
   50% {
     background-color: rgb(251 191 36 / 0.45);
   }
+}
+
+/* Titres : Bricolage Grotesque */
+h1,
+h2,
+h3,
+.marque,
+.titre-mission,
+.victoire h2 {
+  font-family: var(--police-titre);
+}
+
+/* Logo */
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #1c1714;
+  border: 1px solid var(--bord);
+}
+.logo-svg {
+  width: 26px;
+  height: 26px;
 }

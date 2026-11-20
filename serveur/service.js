@@ -78,6 +78,7 @@ export function creerService({ bdd, catalogue, config, discord }) {
       visites: eleve.visites,
       badges: bdd.succes(eleveId),
       accords: { publication: eleve.accord_publication, vitrine: eleve.accord_vitrine },
+      charteAcceptee: eleve.charte_acceptee,
       vitrine: Boolean(eleve.vitrine),
     };
   }
@@ -102,6 +103,7 @@ export function creerService({ bdd, catalogue, config, discord }) {
       messages: bdd.messages(eleveId),
       urlSite: urlSite(eleve.pseudo),
       quiz: bdd.quiz(eleveId, 10),
+      parentsInformes: eleve.parents_informes,
     };
   }
 

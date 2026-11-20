@@ -25,12 +25,21 @@ const css5 = `${css4}\nmain { max-width: 800px; margin: 0 auto; }`;
 const css6 = `${css5}\n.carte { transition: transform 0.3s; }\n.carte:hover { transform: scale(1.05); }`;
 const cssSombre = `${css6}\nbody.sombre { background-color: black; color: white; }`;
 
+const css7 = `:root { --principale: gold; --fond: #1e1b4b; }\n${css6.replace('background-color: #1e1b4b', 'background-color: var(--fond)').replace('color: gold', 'color: var(--principale)')}`;
+const css8 = `${css7}\n@media (max-width: 600px) {\n  h1 { font-size: 2rem; }\n}`;
+const css9 = `${css8}\n@keyframes flotte {\n  from { transform: translateY(0); }\n  to { transform: translateY(-8px); }\n}\nh1 { animation: flotte 1.5s infinite alternate; }`;
+const formulaire = '<form>\n<label for="pseudo">Ton pseudo</label>\n<input id="pseudo" type="text">\n<label for="message">Ton message</label>\n<textarea id="message"></textarea>\n<button type="submit">Envoyer</button>\n</form>';
+const figure = `<figure>\n<img src="${IMAGE}" alt="Une image">\n<figcaption>Ma légende</figcaption>\n</figure>`;
+const faq = '<p>Le jeu le plus vendu ?</p>\n<button id="voir">Voir la réponse</button>\n<p id="reponse" hidden>Minecraft !</p>';
 const js1 = 'console.log("Salut ! Mon JS marche");';
 const js2 = `${js1}\nlet message = document.querySelector("footer p");\nmessage.textContent = "Écrit par mon JS";`;
 const js3 = `${js2}\nlet bouton = document.querySelector("#clic");\nlet reponse = document.querySelector("#reponse");\nbouton.addEventListener("click", function () {\n  reponse.textContent = "Bien joué !";\n});`;
 const js4 = `${js3}\nlet boutonTheme = document.querySelector("#theme");\nboutonTheme.addEventListener("click", function () {\n  document.body.classList.toggle("sombre");\n});`;
 const js5 = `${js4}\nlet compteur = 0;\nlet affichage = document.querySelector("#nombre");\ndocument.querySelector("#like").addEventListener("click", function () {\n  compteur = compteur + 1;\n  affichage.textContent = compteur;\n});`;
 
+const js6 = () => `${js5}\ndocument.querySelector("#voir").addEventListener("click", function () {\n  let r = document.querySelector("#reponse");\n  r.hidden = !r.hidden;\n});`;
+const js7 = () => `${js6()}\nlet heure = new Date().getHours();\nif (heure < 18) {\n  document.querySelector("#salut").textContent = "Bonjour";\n} else {\n  document.querySelector("#salut").textContent = "Bonsoir";\n}`;
+const js8 = () => `${js7()}\nlet jeux = ["Minecraft", "Zelda", "Celeste"];\nfor (let jeu of jeux) {\n  let li = document.createElement("li");\n  li.textContent = jeu;\n  document.querySelector("#mes-jeux").append(li);\n}`;
 const bouton = '<button id="clic">Clique-moi</button>\n<p id="reponse"></p>';
 const boutonTheme = '<button id="theme">Ambiance</button>';
 const like = '<button id="like">❤️</button>\n<p>Likes : <span id="nombre">0</span></p>';
@@ -48,17 +57,26 @@ export const ETAPES = [
   { mission: 'html-6', html: corps(h.titre, h.intro, h.sectionsPunch, h.liste, h.image) },
   { mission: 'html-7', html: corps(h.titre, contenuBase) },
   { mission: 'html-8', html: html8(contenuBase) },
+  { mission: 'html-9', html: html8(corps(contenuBase, formulaire)) },
+  { mission: 'html-10', html: html8(corps(contenuBase, formulaire, figure)) },
+  { mission: 'html-11', html: html8(corps(contenuBase.replace('<h2>Mes astuces</h2>', '<h2>Mes astuces</h2>\n<h3>Sur PC</h3>'), formulaire, figure)) },
   { mission: 'css-1', html: html8(contenuBase), css: css1 },
   { mission: 'css-2', html: html8(contenuBase), css: css2 },
   { mission: 'css-3', html: html8(contenuBase), css: css3 },
   { mission: 'css-4', html: html8(contenuCarte), css: css4 },
   { mission: 'css-5', html: html8(contenuCarte), css: css5 },
   { mission: 'css-6', html: html8(contenuCarte), css: css6 },
+  { mission: 'css-7', html: html8(contenuCarte), css: css7 },
+  { mission: 'css-8', html: html8(contenuCarte), css: css8 },
+  { mission: 'css-9', html: html8(contenuCarte), css: css9 },
   { mission: 'js-1', html: html8(contenuCarte), css: css6, js: js1 },
   { mission: 'js-2', html: html8(contenuCarte), css: css6, js: js2 },
   { mission: 'js-3', html: html8(corps(contenuCarte, bouton)), css: css6, js: js3 },
   { mission: 'js-4', html: html8(corps(contenuCarte, bouton, boutonTheme)), css: cssSombre, js: js4 },
   { mission: 'js-5', html: html8(corps(contenuCarte, bouton, boutonTheme, like)), css: cssSombre, js: js5 },
+  { mission: 'js-6', html: html8(corps(contenuCarte, bouton, boutonTheme, like, faq)), css: cssSombre, js: js6() },
+  { mission: 'js-7', html: html8(corps(contenuCarte, bouton, boutonTheme, like, faq, '<p id="salut"></p>')), css: cssSombre, js: js7() },
+  { mission: 'js-8', html: html8(corps(contenuCarte, bouton, boutonTheme, like, faq, '<p id="salut"></p>', '<ul id="mes-jeux"></ul>')), css: cssSombre, js: js8() },
   // --- Défis bonus ⭐
   { mission: 'html-bonus-1', html: html8(corps(contenuCarte, bouton, boutonTheme, like, tableau)), css: cssSombre, js: js5 },
   { mission: 'html-bonus-2', html: html8(corps(sommaire, contenuCarte.replace('<h2>Mes astuces</h2>', '<h2 id="astuces">Mes astuces</h2>'), bouton, boutonTheme, like, tableau)), css: cssSombre, js: js5 },
@@ -86,5 +104,11 @@ export const PIEGES = [
   { mission: 'css-1', html: '<p>x</p>', css: 'body { background-color: nimportequoi; }', pourquoi: 'couleur invalide' },
   { mission: 'css-1', html: '<p>x</p>', css: 'body { background-color: red }}', pourquoi: 'accolade en trop… mais la couleur marche', attendu: true },
   { mission: 'js-3', html: '<button>Ok</button>', js: 'let b = document.querySelector("button");', pourquoi: 'pas d’écouteur de clic' },
+  { mission: 'html-9', html: '<form><input id="x"><button>Ok</button></form>', pourquoi: 'champ sans étiquette' },
+  { mission: 'html-11', html: '<h1>Titre</h1><h1>Autre</h1><h2>a</h2><h3>b</h3>', pourquoi: 'deux <h1>' },
+  { mission: 'html-11', html: '<h1>Titre</h1><h3>Saut</h3>', pourquoi: 'saut de h1 à h3' },
+  { mission: 'css-7', html: '<h1>x</h1>', css: ':root { --a: red; } h1 { color: var(--a); }', pourquoi: 'variable utilisée une seule fois' },
+  { mission: 'css-8', html: '<h1>x</h1>', css: '@media (min-width: 600px) { h1 { color: red; } }', pourquoi: 'min-width au lieu de max-width' },
+  { mission: 'js-8', html: '<ul><li>a</li><li>b</li><li>c</li></ul>', js: 'for (let i = 0; i < 0; i++) {}', pourquoi: 'liste écrite à la main, pas par la boucle' },
   { mission: 'js-5', html: '<button>+</button><p id="n">0</p>', js: 'let c = 0; document.querySelector("button").addEventListener("click", function () { let c = 0; c = c + 1; document.querySelector("#n").textContent = c; });', pourquoi: 'variable recréée dans la fonction' },
 ];

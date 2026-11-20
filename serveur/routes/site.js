@@ -27,12 +27,24 @@ const CSP_SITE = [
   "form-action 'none'",
 ].join('; ');
 
-export function pageIntrouvable(titre, texte) {
+export function pageIntrouvable(titre = 'Page introuvable', texte = 'Cette page n’existe pas, ou plus.') {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${echapperHtml(titre)}</title><style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f1117;color:#e6e8ef;font:18px/1.5 system-ui,sans-serif;text-align:center;padding:16px}
-h1{font-size:4rem;margin:0}p{color:#a5abbd}</style></head>
-<body><main><h1>🔍</h1><h2>${echapperHtml(titre)}</h2><p>${echapperHtml(texte)}</p></main></body></html>`;
+<meta name="robots" content="noindex"><title>${echapperHtml(titre)} · L'Atelier</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><style>
+:root{color-scheme:light dark;--fond:#f5efe4;--texte:#1f1a16;--doux:#51473d;--accent:#b43c0b;--code:#1c1714}
+@media (prefers-color-scheme:dark){:root{--fond:#15120f;--texte:#f3ede4;--doux:#c6bbac;--accent:#fdba74}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--fond);color:var(--texte);font:17px/1.6 system-ui,sans-serif}
+main{max-width:640px}h1{font-size:clamp(2rem,6vw,3.2rem);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}p{color:var(--doux)}
+pre{background:var(--code);color:#efe8dd;border-radius:10px;padding:20px 22px;font:600 1rem/1.7 ui-monospace,Consolas,monospace;white-space:pre-wrap;margin:24px 0}
+.b{color:#fb923c}.e{color:#f87171;text-decoration:underline wavy}.c{color:#a99d8d}nav{display:flex;flex-wrap:wrap;gap:8px 22px}a{color:var(--accent);font-weight:700}
+</style></head><body><main>
+<p style="font:600 .9rem ui-monospace,monospace;color:var(--accent)">// erreur 404</p>
+<h1>${echapperHtml(titre)}</h1>
+<p>${echapperHtml(texte)}</p>
+<pre><span class="b">&lt;page&gt;</span>
+  Introuvable…
+<span class="b">&lt;/</span><span class="e">pgae</span><span class="b">&gt;</span>  <span class="c">← même les pros se trompent de balise</span></pre>
+<nav><a href="/">Accueil</a><a href="/programme">Programme</a><a href="/vitrine">Vitrine</a><a href="/connexion">Connexion</a></nav>
+</main></body></html>`;
 }
 
 // --- Compteur de visites anonyme ---------------------------------------------------

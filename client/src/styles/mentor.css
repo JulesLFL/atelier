@@ -396,7 +396,7 @@ select.champ {
   vertical-align: middle;
 }
 .table-missions tr.courante td {
-  background: rgb(139 92 246 / 0.08);
+  background: rgb(249 115 22 / 0.08);
 }
 .table-missions select {
   background: var(--surface-3);
@@ -747,4 +747,8 @@ select.champ {
 }
 .mini-attente {
   color: var(--texte-pale);
+}
+
+.ok-parents {
+  color: #a7f3d0;
 }

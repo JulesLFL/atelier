@@ -89,6 +89,11 @@ export async function chargerCatalogue(fichier = path.join(RACINE, 'contenu', 'm
   const mod = await import(pathToFileURL(fichier).href + `?t=${Date.now()}`);
   const catalogue = { modules: mod.modules, missions: mod.missions, quiz: mod.quiz || {} };
   controlerCatalogue(catalogue);
+  // Programme public (page /programme) : titres et objectifs seulement.
+  catalogue.programme = {
+    modules: catalogue.modules.map(({ id, titre, emoji, sousTitre }) => ({ id, titre, emoji, sousTitre })),
+    missions: catalogue.missions.map(({ id, module, titre, objectif, bonus }) => ({ id, module, titre, objectif, bonus: Boolean(bonus) })),
+  };
   // Version envoyée au navigateur (JSON). Le quiz n'y est PAS : ses réponses restent sur le serveur.
   catalogue.public = {
     modules: catalogue.modules,

@@ -181,6 +181,7 @@ describe('Publication', () => {
 
     await t.agent().get('/site/pub').expect(404);
     t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
+    t.appli.bdd.definirParentsInformes(e.id, Date.now());
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
 
     const r = await t.agent().get('/site/pub').expect(200);
@@ -304,6 +305,7 @@ describe('Site publié : visites, vitrine, zip', () => {
     const e = await t.nouvelEleve(m, 'visites');
     const a = await t.connecterEleve(e.code);
     t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
+    t.appli.bdd.definirParentsInformes(e.id, Date.now());
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
     const visiter = (ip, ua = 'Mozilla/5.0 Firefox', extra = {}) => t.agent().get('/site/visites').set({ 'CF-Connecting-IP': ip, 'User-Agent': ua, ...extra }).expect(200);
     await visiter('1.1.1.1');
@@ -321,6 +323,7 @@ describe('Site publié : visites, vitrine, zip', () => {
     const m = await t.mentor();
     const e = await t.nouvelEleve(m, 'vitrine');
     t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: Date.now() });
+    t.appli.bdd.definirParentsInformes(e.id, Date.now());
     await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
     let r = await t.agent().get('/api/vitrine').expect(200);
     expect(r.body.map((s) => s.pseudo)).not.toContain('vitrine');
@@ -375,6 +378,7 @@ describe('Accord de l’élève avant publication', () => {
     const sm = t.socket('/mentor', m);
     await Promise.all([attendreEvt(se, 'connect'), attendreEvt(sm, 'connect')]);
 
+    await m.put(`/api/mentor/eleves/${e.id}/parents`).set('X-Atelier', '1').send({ informes: true }).expect(200);
     // Sans accord : refusé
     let r = await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1');
     expect(r.status).toBe(409);
@@ -403,5 +407,59 @@ describe('Accord de l’élève avant publication', () => {
     expect((await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1')).status).toBe(409);
     se.disconnect();
     sm.disconnect();
+  });
+});
+
+describe('Conformité', () => {
+  it('publication refusée tant que les parents ne sont pas indiqués comme informés', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'parents');
+    t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: null });
+    const r = await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1');
+    expect(r.status).toBe(409);
+    expect(r.body.erreur).toMatch(/parents/);
+    const fiche = (await m.put(`/api/mentor/eleves/${e.id}/parents`).set('X-Atelier', '1').send({ informes: true }).expect(200)).body;
+    expect(fiche.parentsInformes).toBeTypeOf('number');
+    await m.post(`/api/mentor/eleves/${e.id}/publication`).set('X-Atelier', '1').expect(200);
+  });
+
+  it('charte : acceptée une fois, date gardée', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'charte');
+    const a = await t.connecterEleve(e.code);
+    expect((await a.get('/api/eleve/etat')).body.charteAcceptee).toBeNull();
+    const se = t.socket('/eleve', a);
+    await attendreEvt(se, 'connect');
+    await emettre(se, 'charte:accepter');
+    const date = (await a.get('/api/eleve/etat')).body.charteAcceptee;
+    expect(date).toBeTypeOf('number');
+    await emettre(se, 'charte:accepter');
+    expect((await a.get('/api/eleve/etat')).body.charteAcceptee).toBe(date); // la première date reste
+    se.disconnect();
+  });
+
+  it('export des données : complet, sans l’empreinte du code d’accès, réservé au mentor', async () => {
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'export');
+    await m.put(`/api/mentor/eleves/${e.id}/notes`).set('X-Atelier', '1').send({ texte: 'Note privée' }).expect(200);
+    const r = await m.get(`/api/mentor/eleves/${e.id}/export`).expect(200);
+    expect(r.headers['content-disposition']).toMatch(/attachment; filename="donnees-export-/);
+    const d = JSON.parse(r.text);
+    expect(d.eleve.pseudo).toBe('export');
+    expect(d.notes_du_mentor.texte).toBe('Note privée');
+    expect(Object.keys(d)).toEqual(expect.arrayContaining(['projet', 'versions', 'progression', 'seances', 'messages', 'badges', 'quiz', 'publication']));
+    expect(r.text).not.toMatch(/code_hash|epoque_session/);
+    await (await t.connecterEleve(e.code)).get(`/api/mentor/eleves/${e.id}/export`).expect(401);
+  });
+
+  it('security.txt et comptes inactifs', async () => {
+    const r = await t.agent().get('/.well-known/security.txt').expect(200);
+    expect(r.text).toMatch(/^Contact: mailto:/m);
+    expect(r.text).toMatch(/^Expires: \d{4}-/m);
+    const m = await t.mentor();
+    const e = await t.nouvelEleve(m, 'endormi');
+    t.appli.bdd.db.prepare('UPDATE eleves SET derniere_activite = ? WHERE id = ?').run(Date.now() - 400 * 86400000, e.id);
+    const sys = (await m.get('/api/mentor/systeme').expect(200)).body;
+    expect(sys.inactifs.map((x) => x.pseudo)).toContain('endormi');
   });
 });

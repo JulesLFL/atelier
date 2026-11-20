@@ -130,8 +130,10 @@ export function majChecklist(resultats) {
 // ---------------------------------------------------------------------------
 export function rendreParcours(conteneur, S, actions) {
   const statuts = Object.fromEntries(S.etat.missions.map((m) => [m.id, m.statut]));
+  const tout = S.etat.missions.filter((m) => !m.bonus).every((m) => m.statut === 'reussie');
   vider(
     conteneur,
+    tout && h('a', { class: 'bouton-principal lien-diplome', href: '/diplome' }, '🎓 Voir mon diplôme'),
     h('p', { class: 'intro-panneau' }, 'Toutes tes missions. Tu peux revenir sur une mission déjà réussie quand tu veux.'),
     S.catalogue.modules.map((module) => {
       const missions = S.catalogue.missions.filter((m) => m.module === module.id && !m.bonus);

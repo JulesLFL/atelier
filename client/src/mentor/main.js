@@ -1,6 +1,5 @@
 // Panneau mentor : élèves, direct, déblocages, messages, progression, publication.
-import '@fontsource-variable/inter';
-import '@fontsource-variable/jetbrains-mono';
+import '../commun/polices.js';
 import '../styles/base.css';
 import '../styles/eleve.css';
 import '../styles/entree.css';
@@ -16,6 +15,7 @@ import { notifier, confirmer, fenetre } from '../commun/notifications.js';
 import { verifierHtml } from '@partage/verif-html.js';
 import { compterProgression } from '@partage/regles.js';
 import { ongletHistorique, ongletNotes, ouvrirSysteme, verifierSysteme } from './extras.js';
+import { logo, LOGO_SVG } from '../commun/logo.js';
 
 const app = document.getElementById('app');
 const LANGAGES = ['html', 'css', 'js'];
@@ -84,7 +84,7 @@ function ecranConnexion() {
     erreur,
     h('button', { class: 'bouton-principal', type: 'submit' }, 'Entrer →'),
   );
-  vider(app, h('main', { class: 'carte-entree carte-mentor' }, h('div', { class: 'logo-grand', 'aria-hidden': 'true' }, '</>'), h('h1', {}, 'Espace mentor'), h('p', { class: 'sous-titre' }, 'L’Atelier, côté coulisses 🎬'), formulaire));
+  vider(app, h('main', { class: 'carte-entree carte-mentor' }, (() => { const l = h('div', { class: 'logo-grand', 'aria-hidden': 'true' }); l.innerHTML = LOGO_SVG; return l; })(), h('h1', {}, 'Espace mentor'), h('p', { class: 'sous-titre' }, 'L’Atelier, côté coulisses 🎬'), formulaire));
   champ.focus();
 }
 
@@ -97,7 +97,7 @@ function rendreSquelette() {
     h(
       'header',
       { class: 'barre' },
-      h('div', { class: 'marque' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, '</>'), 'L’Atelier ', h('span', { class: 'puce-mentor' }, 'mentor')),
+      h('div', { class: 'marque' }, logo(), 'L’Atelier ', h('span', { class: 'puce-mentor' }, 'mentor')),
       h('div', { class: 'barre-droite' }, h('span', { id: 'alerte-systeme' }), h('button', { class: 'bouton-discret', onclick: () => ouvrirSysteme() }, '⚙️ Système'), h('button', { class: 'bouton-discret', onclick: deconnecter }, 'Se déconnecter')),
     ),
     h(
@@ -612,6 +612,7 @@ function ongletPublication(c) {
           ]
         : h('strong', {}, '⏳ L’élève n’a pas encore demandé la publication. Il le fait depuis son atelier : « 🌍 Mon site → Demander la publication ».'),
     ),
+    !f.parentsInformes && h('div', { class: 'carte-accord' }, h('strong', {}, '👨‍👩‍👧 Les parents n’ont pas encore été indiqués comme informés'), h('span', {}, ' : onglet 🔑 Accès.')),
     h(
       'div',
       { class: 'carte-publication' },
@@ -650,7 +651,7 @@ function ongletPublication(c) {
         : [
             h('p', { class: 'statut-pub' }, '⚪ Pas encore publié'),
             h('p', { class: 'aide-onglet' }, `Publier crée une copie du site de l’élève à l’adresse ${f.urlSite}. Seuls les modules débloqués (${f.etat.onglets.map((o) => o.toUpperCase()).join(', ')}) sont inclus.`),
-            h('button', { class: 'bouton-principal', onclick: publier, disabled: !f.accords?.publication, title: f.accords?.publication ? '' : 'En attente de l’accord de l’élève' }, '🌍 Publier le site'),
+            h('button', { class: 'bouton-principal', onclick: publier, disabled: !f.accords?.publication || !f.parentsInformes, title: !f.accords?.publication ? 'En attente de l’accord de l’élève' : !f.parentsInformes ? 'Indique d’abord que les parents ont été informés' : '' }, '🌍 Publier le site'),
           ],
     ),
     h('section', { class: 'carte-publication' }, h('h2', {}, '⬇️ Fichiers du site'), h('p', { class: 'aide-onglet' }, 'Le code actuel de l’élève (pas forcément la version publiée), en .zip : index.html, style.css, script.js.'), h('a', { class: 'bouton-secondaire', href: `/api/mentor/eleves/${M.selection}/site.zip` }, 'Télécharger le .zip')),
@@ -695,9 +696,35 @@ function ongletAcces(c) {
     rendreListe();
     rendreFiche();
   };
+  const parents = async (informes) => {
+    try {
+      M.fiche = { ...(await api('PUT', `/api/mentor/eleves/${M.selection}/parents`, { informes })), enLigne: M.fiche.enLigne };
+      rendreFiche();
+    } catch (e) {
+      notifier({ icone: '⚠️', texte: e.message, type: 'erreur' });
+    }
+  };
   vider(
     c,
+    h(
+      'section',
+      { class: 'carte-publication' },
+      h('h2', {}, '👨‍👩‍👧 Information des parents'),
+      h('p', { class: 'aide-onglet' }, 'Pas de signature : envoie aux parents le lien de la page d’information ci-dessous (par message ou à l’oral), puis note-le ici. C’est obligatoire avant toute publication.'),
+      lienCopiable(`${location.origin}/parents`),
+      f.parentsInformes
+        ? h('div', { class: 'ligne' }, h('strong', { class: 'ok-parents' }, `✅ Parents informés le ${new Date(f.parentsInformes).toLocaleDateString('fr-FR')}`), h('button', { class: 'bouton-discret petit', onclick: () => parents(false) }, 'Annuler'))
+        : h('button', { class: 'bouton-principal', onclick: () => parents(true) }, 'Les parents ont été informés'),
+      h('p', { class: 'aide-onglet' }, f.charteAcceptee ? `📜 Charte acceptée par l’élève le ${new Date(f.charteAcceptee).toLocaleDateString('fr-FR')}.` : '📜 L’élève n’a pas encore accepté la charte (elle s’affiche à sa première connexion).'),
+    ),
     h('section', { class: 'carte-publication' }, h('h2', {}, '🔑 Lien d’accès'), h('p', { class: 'aide-onglet' }, 'Le lien est stocké chiffré : on ne peut pas le réafficher. Génère un nouveau lien si l’élève a perdu le sien.'), h('button', { class: 'bouton-principal', onclick: regenerer }, 'Générer un nouveau lien')),
+    h(
+      'section',
+      { class: 'carte-publication' },
+      h('h2', {}, '📦 Données de l’élève'),
+      h('p', { class: 'aide-onglet' }, 'Pour une demande d’accès ou de portabilité (RGPD) : toutes ses données dans un fichier JSON (code, versions, progression, séances, messages, tes notes, badges, quiz).'),
+      h('a', { class: 'bouton-secondaire', href: `/api/mentor/eleves/${M.selection}/export` }, 'Exporter toutes les données (.json)'),
+    ),
     h('section', { class: 'carte-publication zone-danger' }, h('h2', {}, '🗑️ Supprimer l’élève'), h('p', { class: 'aide-onglet' }, 'Efface toutes ses données (pseudo, code, progression, messages, site publié).'), h('button', { class: 'bouton-danger', onclick: supprimer }, 'Supprimer')),
   );
 }

@@ -35,7 +35,9 @@ const CSP_APP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-const PAGES_INDEXABLES = new Set(['/', '/mentions-legales', '/confidentialite', '/conditions', '/robots.txt']);
+// Pages que les moteurs de recherche peuvent indexer (tout le reste est en noindex : élèves mineurs).
+const PAGES_INDEXABLES = ['/', '/programme', '/a-propos', '/parents', '/journal', '/mentions-legales', '/confidentialite', '/conditions'];
+const INDEXABLES = new Set([...PAGES_INDEXABLES, '/robots.txt', '/sitemap.xml']);
 
 export async function creerApplication(config, { front = true, fichierBdd, sauvegardesAuto = true } = {}) {
   const enMemoire = fichierBdd === ':memory:';
@@ -77,6 +79,20 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
       );
     }
     if (!config.cleSauvegarde) console.warn('⚠️  SAUVEGARDE_CLE absente : les sauvegardes ne sont PAS chiffrées.');
+    // Rappel des comptes inactifs depuis plus d'un an (engagement de la politique de confidentialité) :
+    // vérifié chaque jour, alerte Discord au plus une fois par semaine.
+    let dernierRappel = 0;
+    const rappelInactifs = () => {
+      const inactifs = bdd.inactifs(365);
+      if (!inactifs.length || Date.now() - dernierRappel < 7 * 86400000) return;
+      dernierRappel = Date.now();
+      discord.envoyer(`💤 ${inactifs.length} compte(s) inactif(s) depuis plus d’un an : ${inactifs.map((e) => e.pseudo).join(', ')}. Pense à les supprimer (politique de confidentialité).`);
+    };
+    const t1 = setTimeout(rappelInactifs, 2 * 60 * 1000);
+    const t2 = setInterval(rappelInactifs, 24 * 3600 * 1000);
+    t1.unref();
+    t2.unref();
+    arrets.push(() => (clearTimeout(t1), clearInterval(t2)));
   }
 
   app.disable('x-powered-by');
@@ -86,7 +102,7 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Les élèves sont mineurs : rien n'est indexé par les moteurs de recherche, sauf la page
     // d'accueil et les pages légales.
-    if (!PAGES_INDEXABLES.has(req.path)) res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    if (!INDEXABLES.has(req.path)) res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
     if (!req.path.startsWith('/site/')) {
@@ -107,6 +123,30 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
   });
 
   app.get('/api/sante', (req, res) => res.json({ ok: true }));
+
+  // Données publiques : le programme (sans les vérifications) et le journal des nouveautés.
+  const { journal } = await import('../contenu/journal.js');
+  app.get('/api/programme', (req, res) => res.json(catalogue.programme));
+  app.get('/api/journal', (req, res) => res.json(journal));
+
+  // Référencement : robots.txt et sitemap.xml, avec l'adresse publique du site.
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain').send(
+      ['# Seules les pages de présentation sont indexables : les sites des élèves (mineurs) et les espaces privés ne le sont pas.', 'User-agent: *', ...PAGES_INDEXABLES.map((p) => `Allow: ${p === '/' ? '/$' : p}`), 'Disallow: /', '', `Sitemap: ${config.urlPublique}/sitemap.xml`, ''].join('\n'),
+    );
+  });
+  app.get('/sitemap.xml', (req, res) => {
+    const urls = PAGES_INDEXABLES.map((p) => `  <url><loc>${config.urlPublique}${p}</loc></url>`).join('\n');
+    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+  });
+
+  // Signalement des failles de sécurité (RFC 9116)
+  app.get('/.well-known/security.txt', (req, res) => {
+    const expire = new Date(Date.now() + 365 * 86400000).toISOString().replace(/\.\d+Z$/, 'Z');
+    res.type('text/plain').send(
+      `Contact: mailto:jules.lfl.pro@proton.me\nExpires: ${expire}\nPreferred-Languages: fr, en\nCanonical: ${config.urlPublique}/.well-known/security.txt\nPolicy: ${config.urlPublique}/conditions\n`,
+    );
+  });
   app.use(routesEleve(ctx));
   app.use('/api/mentor', routesMentor(ctx));
   app.use(routesSite(ctx));
@@ -115,7 +155,7 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
   if (front) await brancherFront(app, ctx);
 
   app.use((req, res) => {
-    res.status(404).type('html').send(pageIntrouvable('Page introuvable', 'Cette page n’existe pas. Retourne à l’atelier !'));
+    res.status(404).type('html').send(pageIntrouvable());
   });
   // Gestionnaire d'erreurs : jamais de détails techniques envoyés au navigateur.
   app.use((err, req, res, next) => {
@@ -130,7 +170,7 @@ export async function creerApplication(config, { front = true, fichierBdd, sauve
 }
 
 /** Pages de l'interface : en production depuis dist/, en développement via Vite. */
-async function brancherFront(app, { auth }) {
+async function brancherFront(app, { auth, config }) {
   const dist = path.join(RACINE, 'dist');
   const pages = {
     accueil: 'index.html',
@@ -141,14 +181,27 @@ async function brancherFront(app, { auth }) {
     mentions: 'mentions-legales.html',
     confidentialite: 'confidentialite.html',
     conditions: 'conditions.html',
+    programme: 'programme.html',
+    journal: 'journal.html',
+    apropos: 'a-propos.html',
+    parents: 'parents.html',
+    diplome: 'diplome.html',
   };
+  // Les pages contiennent « __URL_PUBLIQUE__ » (adresses absolues pour le partage et le référencement).
+  const avecUrl = (html) => html.replaceAll('__URL_PUBLIQUE__', config.urlPublique);
   let envoyerPage;
 
   if (existsSync(path.join(dist, 'index.html'))) {
     app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y', index: false }));
     // Fichiers de client/public (favicon…). Les pages HTML passent par les routes ci-dessous.
     app.use(express.static(dist, { index: false, maxAge: '1d', extensions: [] }));
-    envoyerPage = (res, page) => res.sendFile(path.join(dist, pages[page]), { headers: { 'Cache-Control': 'no-cache' } });
+    const { readFileSync } = await import('node:fs');
+    const cache = new Map();
+    envoyerPage = (res, page) => {
+      if (!cache.has(page)) cache.set(page, avecUrl(readFileSync(path.join(dist, pages[page]), 'utf8')));
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(cache.get(page));
+    };
   } else {
     const { createServer } = await import('vite');
     const vite = await createServer({ configFile: path.join(RACINE, 'vite.config.js'), server: { middlewareMode: true }, appType: 'custom' });
@@ -156,7 +209,7 @@ async function brancherFront(app, { auth }) {
     const { readFile } = await import('node:fs/promises');
     envoyerPage = async (res, page, url) => {
       const brut = await readFile(path.join(RACINE, 'client', pages[page]), 'utf8');
-      res.type('html').send(await vite.transformIndexHtml(url, brut));
+      res.type('html').send(avecUrl(await vite.transformIndexHtml(url, brut)));
     };
   }
 
@@ -168,6 +221,11 @@ async function brancherFront(app, { auth }) {
   app.get('/mentions-legales', (req, res) => envoyerPage(res, 'mentions', req.originalUrl));
   app.get('/confidentialite', (req, res) => envoyerPage(res, 'confidentialite', req.originalUrl));
   app.get('/conditions', (req, res) => envoyerPage(res, 'conditions', req.originalUrl));
+  app.get('/programme', (req, res) => envoyerPage(res, 'programme', req.originalUrl));
+  app.get('/journal', (req, res) => envoyerPage(res, 'journal', req.originalUrl));
+  app.get('/a-propos', (req, res) => envoyerPage(res, 'apropos', req.originalUrl));
+  app.get('/parents', (req, res) => envoyerPage(res, 'parents', req.originalUrl));
+  app.get('/diplome', (req, res) => (connecte(req) ? envoyerPage(res, 'diplome', req.originalUrl) : res.redirect(303, '/connexion')));
 
   // Connexion (déjà connecté : direction l'atelier). /entree = ancienne adresse.
   app.get('/connexion', (req, res) => (connecte(req) ? res.redirect(303, '/atelier') : envoyerPage(res, 'connexion', req.originalUrl)));

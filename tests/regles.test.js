@@ -6,9 +6,9 @@ const catalogue = await chargerCatalogue();
 const statut = (etat, id) => etat.missions.find((m) => m.id === id).statut;
 
 describe('Catalogue des missions', () => {
-  it('contient 8 missions HTML, 6 CSS et 5 JS, plus 2 défis bonus par module', () => {
+  it('contient 11 missions HTML, 9 CSS et 8 JS, plus 2 défis bonus par module', () => {
     const n = (mod, bonus = false) => catalogue.missions.filter((m) => m.module === mod && Boolean(m.bonus) === bonus).length;
-    expect([n('html'), n('css'), n('js')]).toEqual([8, 6, 5]);
+    expect([n('html'), n('css'), n('js')]).toEqual([11, 9, 8]);
     expect([n('html', true), n('css', true), n('js', true)]).toEqual([2, 2, 2]);
   });
 
@@ -69,14 +69,14 @@ describe('Déblocages', () => {
 
   it('les défis bonus s’ouvrent quand le module est fini, sans bloquer la suite', () => {
     const html = catalogue.missions.filter((m) => m.module === 'html' && !m.bonus).map((m) => m.id);
-    let etat = calculerEtat(catalogue, { 'module:css': 'ouvert' }, html.slice(0, 7));
+    let etat = calculerEtat(catalogue, { 'module:css': 'ouvert' }, html.slice(0, -1));
     expect(statut(etat, 'html-bonus-1')).toBe('verrouillee');
     etat = calculerEtat(catalogue, { 'module:css': 'ouvert' }, html);
     expect(statut(etat, 'html-bonus-1')).toBe('disponible');
     expect(statut(etat, 'html-bonus-2')).toBe('disponible');
     expect(statut(etat, 'css-1')).toBe('disponible'); // le CSS n'attend pas les défis
     expect(missionParDefaut(etat)).toBe('css-1'); // les missions obligatoires passent avant
-    expect(compterProgression(etat)).toEqual({ faites: 8, total: 19, bonusFaits: 0, bonusTotal: 6 });
+    expect(compterProgression(etat)).toEqual({ faites: 11, total: 28, bonusFaits: 0, bonusTotal: 6 });
   });
 
   it('fermer un module verrouille ses missions même réussies', () => {

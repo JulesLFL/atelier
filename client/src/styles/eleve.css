@@ -28,16 +28,6 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
-.logo {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #7c3aed, #db2777);
-  font: 800 0.8rem var(--police-code);
-  color: #fff;
-}
 .bascule-mode {
   display: flex;
   background: var(--fond);
@@ -261,8 +251,8 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  background: linear-gradient(135deg, rgb(124 58 237 / 0.22), rgb(219 39 119 / 0.12));
-  border: 1px solid rgb(139 92 246 / 0.45);
+  background: rgb(249 115 22 / 0.1);
+  border: 1px solid rgb(249 115 22 / 0.45);
   border-radius: var(--rayon);
   padding: 12px 14px;
   font-weight: 600;
@@ -1191,4 +1181,31 @@
 .fond-modal .modal:has(.avant-publier),
 .fond-modal .modal:has(.case-accord) {
   width: min(560px, 100%);
+}
+
+/* Charte de la première connexion */
+.charte {
+  width: min(560px, 100%);
+}
+.regles-charte {
+  display: grid;
+  gap: 10px;
+  padding-left: 1.3em;
+  margin: 0 0 14px;
+}
+.regles-charte li {
+  color: var(--texte);
+}
+.petit-texte {
+  font-size: 0.88rem;
+}
+
+.lien-diplome {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+a.marque {
+  color: var(--texte);
+  text-decoration: none;
 }

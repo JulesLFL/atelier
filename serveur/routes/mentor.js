@@ -61,7 +61,9 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
     const ok = await discord.envoyer('✅ Test : les alertes de L’Atelier arrivent bien ici.');
     res.status(ok ? 200 : 502).json(ok ? { ok } : { erreur: 'Discord n’a pas accepté le message (vérifie le webhook).' });
   });
-  r.get('/systeme', (req, res) => res.json({ discord: discord.actif, chiffrement: Boolean(config.cleSauvegarde) }));
+  r.get('/systeme', (req, res) =>
+    res.json({ discord: discord.actif, chiffrement: Boolean(config.cleSauvegarde), inactifs: bdd.inactifs(365).map(({ id, pseudo, derniere_activite }) => ({ id, pseudo, derniereActivite: derniere_activite })) }),
+  );
 
   r.get('/eleves', (req, res) => {
     const obligatoires = new Set(catalogue.missions.filter((m) => !m.bonus).map((m) => m.id));
@@ -196,6 +198,7 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
   r.post('/eleves/:id/publication', (req, res) => {
     // Rien n'est publié sans l'accord de l'élève, donné depuis son atelier.
     if (!req.eleve.accord_publication) return res.status(409).json({ erreur: 'L’élève n’a pas encore demandé la publication (bouton « Mon site » de son atelier).' });
+    if (!req.eleve.parents_informes) return res.status(409).json({ erreur: 'Indique d’abord que les parents ont été informés (onglet Accès).' });
     service.ecrireMaintenant(req.eleve.id); // on publie la toute dernière version
     bdd.ajouterVersion(req.eleve.id, 'publication');
     const { onglets } = service.etatDeblocage(req.eleve.id);
@@ -215,6 +218,21 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
   });
 
   r.get('/eleves/:id/site.zip', (req, res) => envoyerZip(res, req.eleve, service));
+
+  // Information des parents : le mentor note la date (aucune signature demandée).
+  r.put('/eleves/:id/parents', (req, res) => {
+    if (typeof req.body?.informes !== 'boolean') return res.status(400).json({ erreur: '« informes » doit valoir true ou false.' });
+    bdd.definirParentsInformes(req.eleve.id, req.body.informes ? Date.now() : null);
+    res.json(service.ficheMentor(req.eleve.id));
+  });
+
+  // Droit d'accès / portabilité : toutes les données de l'élève en JSON.
+  r.get('/eleves/:id/export', (req, res) => {
+    service.ecrireMaintenant(req.eleve.id);
+    res.setHeader('Content-Disposition', `attachment; filename="donnees-${req.eleve.pseudo}-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('application/json').send(JSON.stringify(bdd.exporter(req.eleve.id), null, 2));
+  });
 
   r.delete('/eleves/:id/publication', (req, res) => {
     bdd.depublier(req.eleve.id);

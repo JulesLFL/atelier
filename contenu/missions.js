@@ -411,6 +411,96 @@ Astuce : décale ce qui est à l'intérieur avec la touche **Tab**. Ça s'appell
     ],
   },
 
+  {
+    id: 'html-9',
+    module: 'html',
+    titre: 'Un formulaire de contact',
+    objectif: 'Ajoute un formulaire avec des champs, chacun avec son étiquette, et un bouton Envoyer.',
+    explication: `Un **formulaire** permet au visiteur d'écrire quelque chose. Il se construit avec :
+
+- \`<form>\` qui entoure tout le formulaire
+- \`<input>\` pour une ligne de texte, \`<textarea>\` pour un long texte
+- \`<label>\` : l'**étiquette** du champ (« Ton pseudo », « Ton message »…)
+- \`<button type="submit">\` pour envoyer
+
+Le \`<label>\` est relié à son champ : son attribut \`for\` contient l'\`id\` du champ. Comme ça, cliquer sur l'étiquette place le curseur dans le champ, et les personnes aveugles entendent à quoi sert chaque case.
+
+(Pour vraiment envoyer un message, il faudrait un serveur : ici, on apprend la structure.)`,
+    exemple: '<form>\n  <label for="pseudo">Ton pseudo</label>\n  <input id="pseudo" type="text">\n\n  <label for="message">Ton message</label>\n  <textarea id="message"></textarea>\n\n  <button type="submit">Envoyer</button>\n</form>',
+    indices: [
+      'Commence par `<form>` et `</form>`, puis ajoute dedans un `<label>` suivi de son `<input>`.',
+      'Le `for` du label doit être exactement l’`id` du champ : `<label for="pseudo">` va avec `<input id="pseudo">`.',
+    ],
+    memo: [
+      { terme: '<form>', categorie: 'balise', definition: 'Un formulaire : il regroupe des champs et un bouton pour envoyer.', exemple: '<form>\n  …\n  <button type="submit">Envoyer</button>\n</form>' },
+      { terme: '<label>', categorie: 'balise', definition: 'L’étiquette d’un champ. Son attribut for = l’id du champ.', exemple: '<label for="pseudo">Ton pseudo</label>\n<input id="pseudo">' },
+      { terme: '<textarea>', categorie: 'balise', definition: 'Une grande zone de texte sur plusieurs lignes.', exemple: '<textarea id="message"></textarea>' },
+    ],
+    verifications: [
+      { type: 'element', selecteur: 'form', label: 'Un formulaire <form>' },
+      { type: 'element', selecteur: 'form input, form textarea', label: 'Au moins un champ (<input> ou <textarea>)' },
+      {
+        type: 'script',
+        label: 'Chaque champ a son étiquette <label>',
+        test: (doc) => {
+          const champs = [...doc.querySelectorAll('form input:not([type=hidden]):not([type=submit]):not([type=button]), form textarea, form select')];
+          return champs.length > 0 && champs.every((c) => (c.id && doc.querySelector(`label[for="${CSS.escape(c.id)}"]`)) || c.closest('label'));
+        },
+      },
+      { type: 'element', selecteur: 'form button', texteMin: 1, label: 'Un bouton pour envoyer' },
+    ],
+  },
+  {
+    id: 'html-10',
+    module: 'html',
+    titre: 'Des images légendées',
+    objectif: 'Ajoute une image avec une légende en dessous.',
+    explication: `Pour mettre une **légende** sous une image, on range les deux dans une \`<figure>\` :
+
+- \`<figure>\` entoure l'image et sa légende
+- \`<figcaption>\` contient la légende
+
+C'est mieux qu'un simple paragraphe en dessous : le navigateur sait que la légende décrit cette image-là.`,
+    exemple: '<figure>\n  <img src="https://picsum.photos/500/280" alt="Une manette de jeu">\n  <figcaption>Ma manette, après 300 heures de jeu.</figcaption>\n</figure>',
+    indices: ['Entoure une de tes images (ou une nouvelle) avec `<figure>` et `</figure>`.', 'Juste après l’image, ajoute `<figcaption>Ta légende</figcaption>`.'],
+    memo: [{ terme: '<figure> et <figcaption>', categorie: 'balise', definition: 'Une image (ou autre illustration) avec sa légende.', exemple: '<figure>\n  <img src="…" alt="…">\n  <figcaption>La légende</figcaption>\n</figure>' }],
+    verifications: [
+      { type: 'element', selecteur: 'figure img', label: 'Une image dans une <figure>' },
+      { type: 'element', selecteur: 'figure figcaption', texteMin: 2, label: 'Une légende <figcaption>' },
+    ],
+  },
+  {
+    id: 'html-11',
+    module: 'html',
+    titre: 'Des titres bien rangés',
+    objectif: 'Ajoute un sous-sous-titre <h3>, avec un seul <h1> et des titres qui ne sautent pas de niveau.',
+    explication: `Les titres forment le **plan** de ta page, comme dans un livre : un seul titre principal \`<h1>\`, des chapitres \`<h2>\`, et des sous-parties \`<h3>\` dans un chapitre.
+
+Les personnes aveugles utilisent un logiciel qui lit la page à voix haute : il permet de **sauter de titre en titre**. Si les niveaux sont dans le désordre, elles se perdent. Faire un site utilisable par tout le monde, ça s'appelle l'**accessibilité**.
+
+Les règles : un seul \`<h1>\`, et on ne saute pas de niveau (pas de \`<h3>\` juste après un \`<h1>\`, sans \`<h2>\` entre les deux).`,
+    exemple: '<h2>Mes jeux préférés</h2>\n<h3>Sur console</h3>\n<p>…</p>\n<h3>Sur PC</h3>\n<p>…</p>',
+    indices: ['Ajoute un `<h3>` juste sous un de tes `<h2>`, pour faire une sous-partie.', 'Si tu as deux `<h1>`, transforme le second en `<h2>`.'],
+    memo: [{ terme: 'Accessibilité', categorie: 'lexique', definition: 'Faire un site utilisable par tout le monde, y compris les personnes aveugles, malvoyantes ou qui n’utilisent pas de souris.' }],
+    verifications: [
+      { type: 'element', selecteur: 'h1', min: 1, max: 1, label: 'Un seul titre <h1>' },
+      { type: 'element', selecteur: 'h3', texteMin: 2, label: 'Au moins un sous-sous-titre <h3>' },
+      {
+        type: 'script',
+        label: 'Les titres ne sautent pas de niveau',
+        test: (doc) => {
+          let precedent = 0;
+          for (const t of doc.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+            const niveau = Number(t.tagName[1]);
+            if (niveau > precedent + 1) return false;
+            precedent = niveau;
+          }
+          return precedent > 0;
+        },
+      },
+    ],
+  },
+
   // --- Défis bonus HTML ⭐ -------------------------------------------------------
   {
     id: 'html-bonus-1',
@@ -676,6 +766,72 @@ Pour que le changement soit tout doux, \`transition\` donne la durée de l'anima
     ],
   },
 
+  {
+    id: 'css-7',
+    module: 'css',
+    titre: 'Tes couleurs en variables',
+    objectif: 'Range tes couleurs dans des variables CSS et utilise-les au moins deux fois.',
+    explication: `Tu utilises la même couleur à plusieurs endroits ? Range-la dans une **variable** ! Si tu changes d'avis, tu la modifies à un seul endroit.
+
+- On déclare les variables dans \`:root\` (c'est toute la page), avec un nom qui commence par deux tirets : \`--principale: gold;\`
+- On les utilise avec \`var(…)\` : \`color: var(--principale);\`
+
+C'est comme les variables en JavaScript, mais pour le CSS.`,
+    exemple: ':root {\n  --principale: gold;\n  --fond: #1e1b4b;\n}\n\nbody {\n  background-color: var(--fond);\n}\n\nh1 {\n  color: var(--principale);\n}',
+    indices: ['Tout en haut de ton CSS : `:root { --principale: gold; }`', 'Ensuite, remplace une couleur par `var(--principale)` dans deux règles différentes.'],
+    memo: [{ terme: 'Variables CSS', categorie: 'propriete', definition: 'Déclarées dans :root avec --nom, utilisées avec var(--nom).', exemple: ':root {\n  --principale: gold;\n}\nh1 {\n  color: var(--principale);\n}' }],
+    verifications: [
+      { type: 'script', label: 'Des variables déclarées dans :root', test: (doc, outils) => /:root\s*\{[^}]*--[\w-]+\s*:/.test(outils.source.css) },
+      { type: 'script', label: 'Utilisées au moins 2 fois avec var(…)', test: (doc, outils) => (outils.source.css.match(/var\(\s*--[\w-]+/g) || []).length >= 2 },
+    ],
+  },
+  {
+    id: 'css-8',
+    module: 'css',
+    titre: 'Ton site sur téléphone',
+    objectif: 'Ajoute une règle qui ne s’applique que sur les petits écrans.',
+    explication: `Ton site sera aussi regardé sur des téléphones, où l'écran est étroit. Avec \`@media\`, tu écris des règles qui ne s'appliquent **que sur les petits écrans** :
+
+\`@media (max-width: 600px) { … }\` veut dire : « seulement si l'écran fait 600 pixels de large ou moins ».
+
+Par exemple, un titre un peu moins énorme, ou moins de marges. Clique sur le bouton 📱 au-dessus de l'aperçu pour voir le résultat !`,
+    exemple: '@media (max-width: 600px) {\n  h1 {\n    font-size: 2rem;\n  }\n\n  .carte {\n    padding: 12px;\n  }\n}',
+    indices: ['Tout en bas de ton CSS, écris `@media (max-width: 600px) { }`.', 'À l’intérieur des accolades, mets une règle normale, par exemple `h1 { font-size: 2rem; }`.'],
+    memo: [{ terme: '@media', categorie: 'propriete', definition: 'Des règles qui ne s’appliquent que sous certaines conditions, par exemple sur les petits écrans.', exemple: '@media (max-width: 600px) {\n  h1 {\n    font-size: 2rem;\n  }\n}' }],
+    verifications: [
+      {
+        type: 'script',
+        label: 'Une règle @media (max-width: …) avec du style dedans',
+        test: (doc) => {
+          const feuille = doc.getElementById('atelier-css')?.sheet;
+          return [...(feuille?.cssRules || [])].some((r) => r.media && /max-width/.test(r.media.mediaText) && r.cssRules.length > 0);
+        },
+      },
+    ],
+  },
+  {
+    id: 'css-9',
+    module: 'css',
+    titre: 'Ça bouge !',
+    objectif: 'Crée une animation avec @keyframes et applique-la à un élément.',
+    explication: `Une **animation** CSS se fait en deux temps :
+
+1. Tu décris le mouvement avec \`@keyframes\` : à quoi ressemble l'élément au début (\`from\`) et à la fin (\`to\`)
+2. Tu l'appliques avec la propriété \`animation\` : le nom, la durée, et \`infinite\` pour qu'elle tourne en boucle
+
+Petit conseil de pro : une animation doit rester discrète. Trop de mouvement, ça fatigue (et ça gêne certaines personnes).`,
+    exemple: '@keyframes flotte {\n  from {\n    transform: translateY(0);\n  }\n  to {\n    transform: translateY(-8px);\n  }\n}\n\nh1 {\n  animation: flotte 1.5s ease-in-out infinite alternate;\n}',
+    indices: ['D’abord `@keyframes monAnimation { from { … } to { … } }`, avec par exemple un `transform` différent dans chaque partie.', 'Puis, dans la règle d’un élément : `animation: monAnimation 2s infinite;`'],
+    memo: [
+      { terme: '@keyframes', categorie: 'propriete', definition: 'Décrit une animation : l’état de départ (from) et d’arrivée (to).', exemple: '@keyframes flotte {\n  from { transform: translateY(0); }\n  to { transform: translateY(-8px); }\n}' },
+      { terme: 'animation', categorie: 'propriete', definition: 'Applique une animation : nom, durée, répétition.', exemple: 'h1 {\n  animation: flotte 2s infinite alternate;\n}' },
+    ],
+    verifications: [
+      { type: 'script', label: 'Une animation décrite avec @keyframes', test: (doc) => [...(doc.getElementById('atelier-css')?.sheet?.cssRules || [])].some((r) => r.type === 7 || r.constructor?.name === 'CSSKeyframesRule') },
+      { type: 'regleCss', proprietes: ['animation'], label: 'Un élément qui utilise la propriété animation' },
+    ],
+  },
+
   // --- Défis bonus CSS ⭐ --------------------------------------------------------
   {
     id: 'css-bonus-1',
@@ -936,6 +1092,98 @@ Attention : la variable du compteur doit être créée **en dehors** de la fonct
     ],
   },
 
+  {
+    id: 'js-6',
+    module: 'js',
+    titre: 'La réponse cachée',
+    objectif: 'Crée une question dont la réponse est cachée, et un bouton pour l’afficher.',
+    explication: `L'attribut \`hidden\` cache un élément : \`<p id="reponse" hidden>…</p>\`.
+
+En JavaScript, \`element.hidden\` vaut \`true\` (caché) ou \`false\` (visible). Et le point d'exclamation \`!\` veut dire « le contraire » : \`!true\` vaut \`false\`.
+
+Donc \`reponse.hidden = !reponse.hidden\` inverse l'état à chaque clic : caché, visible, caché…
+
+Parfait pour une FAQ, une devinette ou un spoiler !`,
+    exemple: {
+      html: '<p>Quel est le jeu le plus vendu de tous les temps ?</p>\n<button id="voir">Voir la réponse</button>\n<p id="reponse" hidden>Minecraft !</p>',
+      js: 'let boutonVoir = document.querySelector("#voir");\nlet reponse = document.querySelector("#reponse");\n\nboutonVoir.addEventListener("click", function () {\n  reponse.hidden = !reponse.hidden;\n});',
+    },
+    indices: ['En HTML, ajoute `hidden` dans la balise ouvrante de la réponse : `<p id="reponse" hidden>`.', 'Dans la fonction du clic : `reponse.hidden = !reponse.hidden;`'],
+    memo: [{ terme: '! (le contraire)', categorie: 'js', definition: 'Inverse une valeur vrai/faux : !true vaut false.', exemple: 'element.hidden = !element.hidden;' }],
+    verifications: [
+      { type: 'script', label: 'Un élément caché avec l’attribut hidden', test: (doc, outils) => outils.pageSansJs().querySelector('body [hidden]') !== null },
+      {
+        type: 'script',
+        label: 'Un clic sur un bouton l’affiche',
+        test: async (doc, outils) => {
+          const etat = () => [...doc.querySelectorAll('body *')].map((e) => e.hidden).join('');
+          for (const bouton of doc.querySelectorAll('button')) {
+            const avant = etat();
+            await outils.cliquer(bouton);
+            if (etat() !== avant) return true;
+          }
+          return false;
+        },
+      },
+    ],
+  },
+  {
+    id: 'js-7',
+    module: 'js',
+    titre: 'Bonjour ou bonsoir ?',
+    objectif: 'Affiche un message différent selon l’heure, avec une condition.',
+    explication: `Une **condition** permet à ton programme de choisir : « **si** quelque chose est vrai, fais ceci, **sinon** fais cela ». Elle s'écrit \`if (condition) { … } else { … }\`.
+
+\`new Date().getHours()\` donne l'heure actuelle (de 0 à 23). Pour comparer, on utilise \`<\` (plus petit que), \`>\` (plus grand que) ou \`===\` (égal à).`,
+    exemple: {
+      html: '<p id="salut"></p>',
+      js: 'let heure = new Date().getHours();\nlet salut = document.querySelector("#salut");\n\nif (heure < 18) {\n  salut.textContent = "Bonjour ☀️ et bienvenue !";\n} else {\n  salut.textContent = "Bonsoir 🌙 et bienvenue !";\n}',
+    },
+    indices: ['Récupère l’heure : `let heure = new Date().getHours();`', 'Puis `if (heure < 18) { … } else { … }`, avec un `textContent` différent dans chaque partie.'],
+    memo: [
+      { terme: 'Comparaisons', categorie: 'js', definition: '< plus petit, > plus grand, === égal, !== différent.', exemple: 'if (score === 10) {\n  console.log("Parfait !");\n}' },
+      { terme: 'L’heure actuelle', categorie: 'js', definition: 'new Date().getHours() donne l’heure de 0 à 23.', exemple: 'let heure = new Date().getHours();' },
+    ],
+    verifications: [
+      { type: 'script', label: 'Une condition if… else', test: (doc, outils) => /\bif\s*\(/.test(outils.source.js) && /\belse\b/.test(outils.source.js) },
+      { type: 'script', label: 'Un texte affiché par ton code', test: (doc, outils) => outils.texteVisible(doc) !== outils.texteVisible(outils.pageSansJs()) },
+    ],
+  },
+  {
+    id: 'js-8',
+    module: 'js',
+    titre: 'Une liste qui se remplit toute seule',
+    objectif: 'Crée une liste à partir d’un tableau, grâce à une boucle.',
+    explication: `Une **boucle** répète des instructions. La boucle \`for … of\` les répète **pour chaque élément d'un tableau** :
+
+\`for (let jeu of jeux) { … }\` veut dire : « pour chaque jeu de la liste des jeux, fais … ».
+
+Pour ajouter un élément dans la page :
+
+- \`document.createElement("li")\` fabrique un nouvel élément
+- \`.textContent\` lui donne son texte
+- \`liste.append(li)\` l'ajoute dans la liste
+
+Ajoute un jeu dans le tableau : il apparaît tout seul dans la page !`,
+    exemple: {
+      html: '<ul id="mes-jeux"></ul>',
+      js: 'let jeux = ["Minecraft", "Zelda", "Celeste", "Rocket League"];\nlet liste = document.querySelector("#mes-jeux");\n\nfor (let jeu of jeux) {\n  let li = document.createElement("li");\n  li.textContent = jeu;\n  liste.append(li);\n}',
+    },
+    indices: ['En HTML, une liste vide : `<ul id="mes-jeux"></ul>`. En JS, un tableau d’au moins 3 textes.', 'Dans la boucle : `let li = document.createElement("li");` puis `li.textContent = jeu;` puis `liste.append(li);`'],
+    memo: [
+      { terme: 'Boucle for … of', categorie: 'js', definition: 'Répète des instructions pour chaque élément d’un tableau.', exemple: 'for (let jeu of jeux) {\n  console.log(jeu);\n}' },
+      { terme: 'createElement / append', categorie: 'js', definition: 'Fabrique un nouvel élément, puis l’ajoute dans la page.', exemple: 'let li = document.createElement("li");\nli.textContent = "Nouveau";\nliste.append(li);' },
+    ],
+    verifications: [
+      { type: 'script', label: 'Une boucle for', test: (doc, outils) => /\bfor\s*\(/.test(outils.source.js) },
+      {
+        type: 'script',
+        label: 'Au moins 3 éléments ajoutés à la page par ta boucle',
+        test: (doc, outils) => doc.querySelectorAll('li').length - outils.pageSansJs().querySelectorAll('li').length >= 3,
+      },
+    ],
+  },
+
   // --- Défis bonus JS ⭐ -----------------------------------------------------------
   {
     id: 'js-bonus-1',
@@ -1096,6 +1344,21 @@ export const quiz = {
     { question: 'Si compteur vaut 4, que vaut-il après compteur = compteur + 1 ?', choix: ['4', '5', '41'], reponse: 1, explication: 'On prend 4, on ajoute 1, on range 5 dans la variable.' },
     { question: 'Pourquoi créer « let compteur = 0 » EN DEHORS de la fonction du clic ?', choix: ['Sinon il repart de 0 à chaque clic', 'Parce que c’est plus joli', 'Ça ne change rien'], reponse: 0, explication: 'Une variable créée dans la fonction est recréée à chaque clic.' },
   ],
+  'html-9': [
+    { question: 'À quoi sert l’attribut for d’un <label> ?', choix: ['À relier l’étiquette à son champ (même valeur que l’id du champ)', 'À répéter le champ plusieurs fois', 'À envoyer le formulaire'], reponse: 0, explication: 'for="pseudo" relie le label au champ id="pseudo".' },
+    { question: 'Quelle balise pour écrire un long message sur plusieurs lignes ?', choix: ['<input>', '<textarea>', '<message>'], reponse: 1, explication: '<input> = une ligne, <textarea> = plusieurs lignes.' },
+  ],
+  'html-10': [{ question: 'Quelle balise contient la légende d’une image dans une <figure> ?', choix: ['<caption>', '<figcaption>', '<legend>'], reponse: 1, explication: '<figure> entoure l’image et son <figcaption>.' }],
+  'html-11': [
+    { question: 'Combien de <h1> dans une page, en général ?', choix: ['Un seul', 'Un par paragraphe', 'Autant qu’on veut'], reponse: 0, explication: 'Le <h1> est le titre principal : il n’y en a qu’un.' },
+    { question: 'Après un <h1>, peut-on mettre directement un <h3> ?', choix: ['Oui, aucun problème', 'Non, il faut d’abord un <h2>', 'Seulement en bas de page'], reponse: 1, explication: 'On ne saute pas de niveau : h1, puis h2, puis h3.' },
+  ],
+  'css-7': [{ question: 'Comment utilise-t-on la variable --principale ?', choix: ['color: --principale;', 'color: var(--principale);', 'color: $principale;'], reponse: 1, explication: 'On déclare avec --nom et on utilise avec var(--nom).' }],
+  'css-8': [{ question: 'Que veut dire @media (max-width: 600px) ?', choix: ['Seulement si l’écran fait 600 px de large ou moins', 'Seulement si l’écran fait plus de 600 px', 'Toujours'], reponse: 0, explication: 'max-width = largeur maximum : les petits écrans.' }],
+  'css-9': [{ question: 'Dans @keyframes, que décrivent from et to ?', choix: ['Le début et la fin de l’animation', 'La couleur et la taille', 'Le premier et le dernier élément'], reponse: 0, explication: 'from = état de départ, to = état d’arrivée.' }],
+  'js-6': [{ question: 'Si reponse.hidden vaut true, que vaut !reponse.hidden ?', choix: ['true', 'false', 'hidden'], reponse: 1, explication: '! veut dire « le contraire ».' }],
+  'js-7': [{ question: 'Si heure vaut 20, quel bloc s’exécute dans if (heure < 18) { A } else { B } ?', choix: ['A', 'B', 'Les deux'], reponse: 1, explication: '20 n’est pas plus petit que 18 : c’est le else qui s’exécute.' }],
+  'js-8': [{ question: 'Combien de fois tourne for (let jeu of ["a", "b", "c"]) ?', choix: ['1 fois', '3 fois', 'À l’infini'], reponse: 1, explication: 'Une fois pour chaque élément du tableau.' }],
   'html-bonus-1': [{ question: 'Dans un tableau, que crée <tr> ?', choix: ['Une ligne', 'Une colonne', 'Une case'], reponse: 0, explication: 'tr = table row, une ligne.' }],
   'html-bonus-2': [{ question: 'Pour aller à l’élément id="contact", le lien est…', choix: ['href="contact"', 'href="#contact"', 'href=".contact"'], reponse: 1, explication: 'Un # suivi de l’id.' }],
   'css-bonus-1': [{ question: 'Sur quel élément met-on display: flex ?', choix: ['Sur le parent qui contient les éléments', 'Sur chaque élément à ranger', 'Sur le body uniquement'], reponse: 0, explication: 'Le parent devient un conteneur flex et range ses enfants.' }],

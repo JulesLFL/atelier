@@ -4,13 +4,13 @@ Un mini site pour apprendre le développement web **en construisant son propre s
 L'élève écrit du HTML, puis du CSS, puis du JavaScript, et voit sa page se construire en direct.
 Le mentor suit tout en temps réel, débloque les étapes et publie le site final.
 
-- **Mode Missions** : 19 petites missions guidées (8 HTML, 6 CSS, 5 JS) + 6 **défis bonus ⭐**, avec checklist automatique, indices et célébration.
+- **Mode Missions** : 28 petites missions guidées (11 HTML, 9 CSS, 8 JS) + 6 **défis bonus ⭐**, avec checklist automatique, indices et célébration, et un **diplôme** à imprimer à la fin.
 - **Mode Bac à sable** : l'élève construit ce qu'il veut, avec un mémo (lexique, balises, propriétés, bouts de JS) copiable en un clic.
 - **Aides pour l'élève** : erreurs JS **et HTML** expliquées en français (et soulignées dans l'éditeur), aperçu ordinateur ou 📱 téléphone, quiz d'échauffement, 15 badges.
 - **Panneau mentor** (`/mentor`) : déblocages, vue en direct (code, aperçu, console, checklist), **montrer une ligne** à l'élève d'un clic, messages et indices, quiz, progression, **historique des versions** restaurable, **notes privées**, publication.
 - **Sites publiés** : `/site/<pseudo>`, une copie figée avec QR code, compteur de visites anonyme, téléchargement en .zip, et **vitrine** publique facultative (`/vitrine`).
 - **Sauvegardes** quotidiennes chiffrées, vérifiées et tournantes, plus des **alertes Discord** (optionnelles).
-- **Pages publiques** : page d'accueil, vitrine, mentions légales, politique de confidentialité et conditions d'utilisation.
+- **Pages publiques** : accueil, programme, vitrine, journal de l'atelier, à propos, page d'information pour les parents, et pages légales. Thème clair ou sombre, accessibilité vérifiée automatiquement.
 
 | Adresse | Page |
 |---|---|
@@ -19,7 +19,11 @@ Le mentor suit tout en temps réel, débloque les étapes et publie le site fina
 | `/e/<code>` | Lien personnel : connecte directement l'élève |
 | `/atelier` | L'atelier de l'élève (connexion obligatoire) |
 | `/mentor` | Panneau mentor |
-| `/vitrine` | Les sites cochés par le mentor |
+| `/programme` | Toutes les missions (généré depuis `contenu/missions.js`) |
+| `/vitrine` | Les sites cochés par le mentor (avec un lien « Signaler ») |
+| `/journal` | Les nouveautés, version après version (`contenu/journal.js`) |
+| `/a-propos`, `/parents` | L'histoire de l'Atelier ; l'information des parents |
+| `/diplome` | Le diplôme de l'élève (quand toutes les missions sont réussies) |
 | `/site/<pseudo>` | Le site publié d'un élève |
 | `/mentions-legales`, `/confidentialite`, `/conditions` | Pages légales |
 
@@ -78,12 +82,13 @@ Dans le panneau mentor, clique sur **« + Nouveau »**, choisis un pseudo : tu o
 
 ```bash
 npm test                                 # serveur, sauvegardes, règles, missions, vérificateur HTML, erreurs en français (~5 s)
-npm run build && npm run test:navigateur # tests dans un vrai navigateur (~1 min)
+npm run build && npm run test:navigateur # tests dans un vrai navigateur (~2 min)
+npm run build && npm run test:accessibilite # audit axe-core (WCAG 2.1 AA) de toutes les pages, thèmes clair et sombre
 ```
 
 `test:navigateur` pilote **le Firefox déjà installé** sur ta machine, en mode invisible (rien n'est téléchargé). Il vérifie :
 
-- pour chacune des 25 missions et défis : la solution de référence la réussit, l'étape d'avant ne la réussit pas, et les erreurs classiques ne la valident pas ;
+- pour chacune des 34 missions et défis : la solution de référence la réussit, l'étape d'avant ne la réussit pas, et les erreurs classiques ne la valident pas ;
 - le parcours de l'élève : ouverture du lien → première balise → mission réussie (en environ 4 secondes), badges, quiz, aperçu téléphone, « Mon site » ;
 - l'isolation de l'aperçu : pas d'accès aux cookies, à l'application, à l'API ;
 - les erreurs JS et HTML expliquées en français, la protection contre les boucles infinies ;
@@ -95,7 +100,7 @@ Les captures d'écran sont enregistrées dans `tests/navigateur/captures/`.
 npm run build && npm run captures         # captures de démonstration (élèves et sites fictifs)
 ```
 
-`captures` lance l'Atelier avec trois élèves fictifs, puis capture l'atelier (l'image `client/public/images/apercu-atelier.png` affichée sur la page d'accueil) et toutes les pages publiques, sur ordinateur et sur téléphone. Refais-le après avoir changé le design de l'atelier, puis `npm run build`.
+`captures` lance l'Atelier avec trois élèves fictifs, puis fabrique les images de `client/public/images/` (les 3 étapes de la page d'accueil, l'image de partage `og.png`) et capture toutes les pages publiques (ordinateur clair et sombre, téléphone). Refais-le après avoir changé le design de l'atelier, puis `npm run build`.
 
 ---
 
@@ -322,6 +327,7 @@ Puis redémarre le serveur, ou fais `git push` puis *Pull and redeploy* sur le N
 ## 7. Utilisation pendant une séance
 
 1. **Avant la première séance** : `/mentor` → **+ Nouveau** → pseudo (pas de nom de famille). Copie le **lien personnel** et envoie-le à l'élève. Il n'est affiché qu'une fois, car il est stocké chiffré. Si l'élève le perd : onglet **Accès** → *Générer un nouveau lien*.
+   Envoie aussi aux parents le lien de la page **`/parents`** (information, aucune signature), puis note-le dans l'onglet **🔑 Accès**. À sa première connexion, l'élève lit et accepte une courte charte.
 2. **Pendant la séance** : onglet **🔴 Direct**. Tu y vois le code, l'aperçu, la console (avec ses erreurs JS et HTML), la mission en cours, sa checklist et les indices utilisés.
    - **Clique sur un numéro de ligne** : elle est surlignée chez l'élève, avec une notification « Ton mentor te montre la ligne 12 ».
    - La barre du bas envoie un **message**, un **indice** (il reste affiché jusqu'à ce que l'élève le ferme) ou lance un **🧩 quiz** de 3 questions.
@@ -368,9 +374,38 @@ Engagements pris dans la politique de confidentialité, à tenir à la main :
 
 - supprimer les comptes inactifs depuis plus d'un an (le panneau mentor les signale par un 💤) ;
 - répondre aux demandes d'accès ou de suppression sous un mois ;
-- relire un site avant de le publier.
+- relire un site avant de le publier ;
+- **informer les parents** avant toute publication : envoie-leur le lien de la page `/parents` (aucune signature), puis clique sur « Les parents ont été informés » (onglet 🔑 Accès). Sans ça, le serveur refuse de publier.
+
+Documents internes (RGPD) : [`docs/registre-des-traitements.md`](docs/registre-des-traitements.md) et [`docs/analyse-impact.md`](docs/analyse-impact.md). Mets-les à jour si tu ajoutes des données ou un prestataire.
 
 L'accord de l'élève, lui, est imposé par l'application : il demande la publication depuis son atelier (**🌍 Mon site → Demander la publication**, avec une case à part pour la vitrine). Tant qu'il ne l'a pas fait, le serveur refuse de publier, et refuse la vitrine sans la case cochée. Il peut retirer son site ou le sortir de la vitrine lui-même, immédiatement.
+
+---
+
+### Journal de l'atelier
+
+À **chaque mise à jour**, ajoute une entrée en haut de [`contenu/journal.js`](contenu/journal.js) (version, date, et les changements en langage simple). Elle s'affiche sur la page `/journal`.
+
+### Surveillance (status.juleslfl.dev)
+
+Dans le tableau de bord de ton Portfolio, onglet de la page de statut, ajoute un service :
+
+| Champ | Valeur |
+|---|---|
+| Nom | `L'Atelier` |
+| Adresse | `https://latelier.juleslfl.dev/api/sante` |
+| Groupe | `L'Atelier` |
+| Doit contenir | `"ok":true` |
+
+### Identité visuelle (à garder pour ne pas retomber dans le « style IA »)
+
+- **Couleurs** : celles du code. Orange HTML (accent principal), bleu CSS, jaune JS. Fond « papier » `#f5efe4` en clair, « établi » `#15120f` en sombre. Pas de violet, pas de dégradé décoratif, pas de halo.
+- **Polices** : Bricolage Grotesque (titres), Atkinson Hyperlegible (texte), JetBrains Mono (code). Hébergées sur le site.
+- **Mise en page** : alignée à gauche, filets et espace plutôt que cartes ; des cartes seulement pour les vrais objets (sites de la vitrine).
+- **Images** : de vraies captures de l'atelier (`npm run captures`), jamais d'icônes génériques à la place.
+- **Texte** : concret, écrit pour des élèves et des parents ; pas de slogans creux.
+- **Mouvement** : une seule animation qui raconte le concept (le code tapé, la page qui se construit), coupée si l'appareil demande moins d'animations.
 
 ---
 
@@ -378,6 +413,8 @@ L'accord de l'élève, lui, est imposé par l'application : il demande la public
 
 ```
 contenu/missions.js        ← LES MISSIONS, défis et quiz (le seul fichier à modifier pour le contenu)
+contenu/journal.js         ← le journal des nouveautés (une entrée par mise à jour)
+docs/                      registre des traitements, analyse d'impact, capture du README
 partage/
   regles.js                déblocages, assemblage de la page (utilisé par le serveur ET le navigateur)
   garde-boucles.js         protection contre les boucles infinies
@@ -398,8 +435,10 @@ serveur/
   routes/                  eleve.js · mentor.js · site.js (sites publiés, vitrine, visites)
 client/
   index.html               page d'accueil publique
-  connexion.html · atelier.html · mentor.html · vitrine.html
+  connexion.html · atelier.html · mentor.html · vitrine.html · diplome.html
+  programme.html · journal.html · a-propos.html · parents.html
   mentions-legales.html · confidentialite.html · conditions.html
+  morceaux/                en-tête, pied de page et <head> communs (insérés au build par vite.config.js)
   public/images/           illustration de l'accueil (générée par « npm run captures »)
   src/public/              scripts des pages publiques (accueil, vitrine, pages légales)
   src/commun/              editeur (CodeMirror 6), apercu (iframes), sonde (script injecté

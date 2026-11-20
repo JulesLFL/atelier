@@ -228,3 +228,40 @@ export function ouvrirMonSite(o) {
     h('div', { class: 'ligne-boutons' }, retirer),
   );
 }
+
+// --------------------------------------------------------------------------
+//  Charte, à la première connexion (une seule fois)
+// --------------------------------------------------------------------------
+export function afficherCharte(accepter) {
+  return new Promise((termine) => {
+    const bouton = h('button', { class: 'bouton-principal' }, 'J’ai compris, c’est parti →');
+    const fond = h(
+      'div',
+      { class: 'fond-modal' },
+      h(
+        'div',
+        { class: 'modal charte', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'titre-charte' },
+        h('h2', { id: 'titre-charte' }, 'Bienvenue dans ton atelier !'),
+        h('p', {}, 'Avant de commencer, quatre règles pour que tout le monde soit bien ici :'),
+        h(
+          'ol',
+          { class: 'regles-charte' },
+          h('li', {}, h('strong', {}, 'Ton lien est secret. '), 'Ne le donne à personne : c’est la clé de ton atelier.'),
+          h('li', {}, h('strong', {}, 'Rien de personnel sur ton site. '), 'Ni ton nom de famille, ni ton adresse, ni ton école, ni de photos de toi ou des autres.'),
+          h('li', {}, h('strong', {}, 'Reste sympa. '), 'Rien de méchant, de violent ou de choquant.'),
+          h('li', {}, h('strong', {}, 'Des images que tu as le droit d’utiliser. '), 'Les tiennes, ou des images libres de droits.'),
+        ),
+        h('p', { class: 'petit-texte' }, 'Le détail est dans les ', h('a', { href: '/conditions', target: '_blank', rel: 'noopener' }, 'conditions d’utilisation'), ' et la ', h('a', { href: '/confidentialite', target: '_blank', rel: 'noopener' }, 'politique de confidentialité'), '.'),
+        h('div', { class: 'modal-actions' }, bouton),
+      ),
+    );
+    bouton.addEventListener('click', async () => {
+      bouton.disabled = true;
+      await accepter();
+      fond.remove();
+      termine();
+    });
+    document.body.append(fond);
+    bouton.focus();
+  });
+}

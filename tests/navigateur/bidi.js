@@ -103,17 +103,19 @@ export async function lancerFirefox({ binaire = process.env.FIREFOX || 'firefox'
       await envoyer('input.performActions', { context: contexte, actions: [{ type: 'key', id: 'clavier', actions }] });
       await envoyer('input.releaseActions', { context: contexte });
     },
-    async taille(largeur, hauteur) {
-      await envoyer('browsingContext.setViewport', { context: contexte, viewport: { width: largeur, height: hauteur } });
+    async taille(largeur, hauteur, densite = 1) {
+      await envoyer('browsingContext.setViewport', { context: contexte, viewport: { width: largeur, height: hauteur }, devicePixelRatio: densite });
     },
     async touches(...valeurs) {
       const actions = [...valeurs.map((v) => ({ type: 'keyDown', value: v })), ...valeurs.reverse().map((v) => ({ type: 'keyUp', value: v }))];
       await envoyer('input.performActions', { context: contexte, actions: [{ type: 'key', id: 'clavier', actions }] });
       await envoyer('input.releaseActions', { context: contexte });
     },
-    async capture(fichier, { pleinePage = false } = {}) {
+    async capture(fichier, { pleinePage = false, zone } = {}) {
       const { writeFileSync } = await import('node:fs');
-      const r = await envoyer('browsingContext.captureScreenshot', { context: contexte, origin: pleinePage ? 'document' : 'viewport' });
+      const params = { context: contexte, origin: pleinePage ? 'document' : 'viewport' };
+      if (zone) params.clip = { type: 'box', ...zone };
+      const r = await envoyer('browsingContext.captureScreenshot', params);
       writeFileSync(fichier, Buffer.from(r.data, 'base64'));
     },
     async fermer() {

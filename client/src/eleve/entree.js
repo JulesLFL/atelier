@@ -1,8 +1,4 @@
-import '@fontsource-variable/inter';
-import '../styles/base.css';
-import '../styles/eleve.css';
-import '../styles/entree.css';
-import '../styles/public.css';
+import '../public/commun.js';
 import { api } from '../commun/api.js';
 
 const champ = document.getElementById('code');

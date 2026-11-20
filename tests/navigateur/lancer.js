@@ -117,6 +117,11 @@ try {
   const debut = Date.now();
   await nav.aller(`${BASE}/e/${code}`);
   ok(await nav.evaluer('location.pathname') === '/atelier', 'le lien personnel ouvre l’atelier (et le code disparaît de l’URL)');
+  await nav.attendre("document.querySelector('.charte')", { message: 'charte à la première connexion' });
+  await nav.capture(path.join(CAPTURES, '0-charte.png'));
+  await nav.evaluer("document.querySelector('.charte .bouton-principal').click()");
+  await nav.attendre("!document.querySelector('.charte')", { message: 'charte acceptée' });
+  ok(true, 'la charte s’affiche à la première connexion et se valide');
   await nav.attendre("document.querySelector('.cm-content')", { message: 'éditeur affiché' });
   await nav.attendre("document.querySelector('#checklist li')", { message: 'mission affichée' });
   ok((await nav.evaluer("document.querySelector('.titre-mission').textContent")) === 'Ton tout premier titre', 'la mission 1 est affichée');
@@ -194,6 +199,7 @@ try {
   await nav.capture(path.join(CAPTURES, '2e-demande-publication.png'));
   await nav.evaluer("[...document.querySelectorAll('.modal button')].find(b => b.textContent.includes('Demander la publication')).click()");
   const accord = await accordRecu;
+  await mentorApi('PUT', `/api/mentor/eleves/${eleve.id}/parents`, { informes: true });
   ok(accord.accords.publication && accord.accords.vitrine, 'l’élève demande la publication (et accepte la vitrine) : le mentor est prévenu');
   await nav.attendre("document.querySelector('.statut-demande')", { message: 'demande en attente' });
   await nav.evaluer("document.querySelector('.fond-modal').remove()");
@@ -345,8 +351,16 @@ try {
   // ------------------------------------------------------------------------------
   console.log('\n🧪 4. Pages publiques');
   await nav.aller(`${BASE}/`);
-  ok((await nav.evaluer("document.querySelector('h1').textContent")).includes('ton propre site web'), 'la page d’accueil s’affiche');
-  ok((await nav.evaluer("document.querySelector('#bouton-entete').textContent")).includes('Mon atelier'), 'accueil : un élève connecté voit « Mon atelier »');
+  ok((await nav.evaluer("document.querySelector('h1').textContent")).includes('son propre site'), 'la page d’accueil s’affiche');
+  await nav.attendre("document.querySelector('.bouton-connexion').textContent.includes('Mon atelier')", { message: 'bouton « Mon atelier »' });
+  ok(true, 'accueil : un élève connecté voit « Mon atelier »');
+  await nav.attendre("document.querySelector('[data-nb-missions]').textContent === '28'", { message: 'chiffres du programme' });
+  ok(true, 'accueil : les chiffres viennent du vrai catalogue (28 missions)');
+  await nav.evaluer("(localStorage.removeItem('atelier:theme'), document.querySelector('.bascule-theme').click(), true)");
+  const theme1 = await nav.evaluer('document.documentElement.dataset.theme');
+  await nav.evaluer("document.querySelector('.bascule-theme').click()");
+  const theme2 = await nav.evaluer('document.documentElement.dataset.theme');
+  ok(theme1 && theme2 && theme1 !== theme2, `bouton de thème : ${theme1} puis ${theme2}`);
   await nav.attendre("!document.querySelector('#section-vitrine').hidden && document.querySelector('#apercu-vitrine .carte-site')", { message: 'dernières créations sur l’accueil' });
   ok(true, 'accueil : les dernières créations de la vitrine sont affichées');
   await nav.aller(`${BASE}/connexion`);
@@ -354,7 +368,7 @@ try {
   await nav.aller(`${BASE}/entree?erreur=code`);
   ok((await nav.evaluer('location.pathname + location.search')).startsWith('/atelier') || (await nav.evaluer('location.pathname')) === '/connexion', 'l’ancienne adresse /entree redirige');
   await nav.taille(390, 844);
-  for (const adresse of ['/', '/vitrine', '/mentions-legales', '/confidentialite', '/conditions']) {
+  for (const adresse of ['/', '/programme', '/vitrine', '/journal', '/a-propos', '/parents', '/mentions-legales', '/confidentialite', '/conditions']) {
     await nav.aller(`${BASE}${adresse}`);
     const deborde = await nav.evaluer('document.documentElement.scrollWidth > document.documentElement.clientWidth + 1');
     const liens = await nav.evaluer("['/mentions-legales', '/confidentialite', '/conditions'].every(l => document.querySelector(`footer a[href=\"${l}\"]`))");
@@ -363,7 +377,19 @@ try {
   await nav.taille(1440, 900);
   const robots = await (await fetch(`${BASE}/robots.txt`)).text();
   const enTetes = async (u) => (await fetch(`${BASE}${u}`)).headers.get('x-robots-tag');
-  ok(robots.includes('Disallow: /') && (await enTetes('/')) === null && /noindex/.test(await enTetes('/vitrine')), 'référencement : accueil et pages légales indexables, le reste en noindex');
+  ok(robots.includes('Disallow: /') && robots.includes('Sitemap: ') && (await enTetes('/')) === null && /noindex/.test(await enTetes('/vitrine')), 'référencement : accueil et pages de présentation indexables, le reste en noindex');
+  const sitemap = await (await fetch(`${BASE}/sitemap.xml`)).text();
+  ok(sitemap.includes(`<loc>${BASE}/programme</loc>`) && !sitemap.includes('/vitrine'), 'sitemap.xml : seulement les pages indexables');
+  const accueilHtml = await (await fetch(`${BASE}/`)).text();
+  ok(accueilHtml.includes(`<meta property="og:image" content="${BASE}/images/og.png">`) && !accueilHtml.includes('__URL_PUBLIQUE__'), 'aperçu de partage : adresse absolue de l’image');
+  ok((await fetch(`${BASE}/images/og.png`)).ok && (await fetch(`${BASE}/images/etape-2-direct.png`)).ok, 'images de l’accueil présentes');
+  ok((await (await fetch(`${BASE}/.well-known/security.txt`)).text()).startsWith('Contact: mailto:'), 'security.txt');
+  const prog = await (await fetch(`${BASE}/api/programme`)).json();
+  ok(prog.missions.length === 34 && !JSON.stringify(prog).includes('verifications'), 'programme public : 34 missions et défis, sans les vérifications');
+  ok((await (await fetch(`${BASE}/api/journal`)).json())[0].version, 'journal de l’atelier');
+  await nav.aller(`${BASE}/vitrine`);
+  await nav.attendre("document.querySelector('.carte-site .signaler')", { message: 'lien « Signaler »' });
+  ok((await nav.evaluer("document.querySelector('.carte-site .signaler').getAttribute('href')")).startsWith('mailto:'), 'vitrine : lien « Signaler ce site »');
 
   const erreursApp = nav.journal.filter((j) => j.level === 'error' && !/about:srcdoc/.test(j.source?.context || '') && !/atelier|bouton|cookie|parent|Boucle|Cross-Origin Request Blocked/i.test(j.text));
   ok(erreursApp.length === 0, `aucune erreur JS dans l’application elle-même${erreursApp.length ? ' : ' + erreursApp.map((e) => e.text).join(' | ') : ''}`);

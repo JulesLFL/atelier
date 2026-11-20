@@ -1,6 +1,5 @@
 // L'atelier de l'élève : éditeur + aperçu + missions + temps réel.
-import '@fontsource-variable/inter';
-import '@fontsource-variable/jetbrains-mono';
+import '../commun/polices.js';
 import '../styles/base.css';
 import '../styles/eleve.css';
 import { io } from 'socket.io-client';
@@ -12,7 +11,7 @@ import { notifier, confirmer, fenetre } from '../commun/notifications.js';
 import { creerConsole } from '../commun/console.js';
 import { celebrer } from './celebration.js';
 import { rendreMission, rendreParcours, rendreMemo, majChecklist, annoncerDeblocage } from './panneaux.js';
-import { annoncerBadges, ouvrirBadges, lancerQuiz, ouvrirMonSite } from './extras.js';
+import { annoncerBadges, ouvrirBadges, lancerQuiz, ouvrirMonSite, afficherCharte } from './extras.js';
 import { compterProgression } from '@partage/regles.js';
 import { verifierHtml } from '@partage/verif-html.js';
 
@@ -87,6 +86,10 @@ async function demarrer() {
   connecterTempsReel();
   rendreTout();
   actualiser({ sauvegarder: false });
+
+  // Première connexion : la charte, une seule fois.
+  if (!donnees.charteAcceptee) await afficherCharte(() => new Promise((ok) => socket.emit('charte:accepter', ok)));
+  S.charteOk = true;
 
   // L'élève peut taper tout de suite : curseur à la fin du HTML.
   const html = editeurs.html;
@@ -251,7 +254,7 @@ function feterReussite(mission) {
   if (mission.bonus) {
     celebrer({ grand: true, titre: 'Défi bonus réussi ! ⭐', sousTitre: 'Là, tu dépasses le programme. Chapeau. 🎩', suivant: idSuivante && { texte: suivanteEstBonus ? '⭐ Défi suivant →' : 'Mission suivante →', action: () => choisirMission(idSuivante) } });
   } else if (toutFini && !idSuivante) {
-    celebrer({ grand: true, titre: 'Toutes les missions sont réussies !', sousTitre: 'Tu as construit ton site de A à Z. Respect total. 🏆 Continue-le en Bac à sable !' });
+    celebrer({ grand: true, titre: 'Toutes les missions sont réussies !', sousTitre: 'Tu as construit ton site de A à Z. Respect total. 🏆 Ton diplôme t’attend !', suivant: { texte: '🎓 Voir mon diplôme', action: () => window.open('/diplome', '_blank', 'noopener') } });
   } else if (moduleFini) {
     celebrer({
       grand: true,
@@ -497,7 +500,8 @@ function connecterTempsReel() {
     // Quiz d'échauffement : le serveur décide s'il en propose un (au plus toutes les 6 h).
     if (!quizDemande) {
       quizDemande = true;
-      setTimeout(() => socket.emit('quiz:demander', (quiz) => quiz && ouvrirQuiz(quiz)), 1500);
+      const demanderQuiz = () => (S.charteOk ? socket.emit('quiz:demander', (quiz) => quiz && ouvrirQuiz(quiz)) : setTimeout(demanderQuiz, 1000));
+      setTimeout(demanderQuiz, 1500);
     }
   });
   socket.on('disconnect', (raison) => {

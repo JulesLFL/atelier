@@ -3,230 +3,158 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>L'Atelier · Apprends à coder ton propre site web</title>
-  <meta name="description" content="L'Atelier : un atelier en ligne pour apprendre le HTML, le CSS et le JavaScript en construisant ton propre site, mission après mission, avec un mentor. Gratuit, sans publicité, sans traceur.">
-  <meta property="og:title" content="L'Atelier · Apprends à coder ton propre site web">
-  <meta property="og:description" content="Des missions courtes, ta page qui se construit en direct, et à la fin ton propre site en ligne.">
+  <title>L'Atelier · Apprendre à coder en construisant son propre site</title>
+  <meta name="description" content="Un atelier en ligne pour les collégiens qui n'ont jamais codé : des missions de quelques minutes en HTML, CSS et JavaScript, la page qui se construit pendant qu'on tape, et un mentor en visio. Gratuit, sans publicité.">
+  <link rel="canonical" href="__URL_PUBLIQUE__/">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#0b0e14">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:url" content="__URL_PUBLIQUE__/">
+  <meta property="og:title" content="L'Atelier · Apprendre à coder en construisant son propre site">
+  <meta property="og:description" content="Des missions courtes, la page qui se construit pendant qu'on tape, et à la fin son propre site en ligne.">
+  <meta property="og:image" content="__URL_PUBLIQUE__/images/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+<!-- @tete -->
 </head>
 <body class="page-publique">
-  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
-  <header class="entete-public">
-    <div class="conteneur">
-      <a class="marque" href="/"><span class="logo" aria-hidden="true">&lt;/&gt;</span> L'Atelier</a>
-      <nav class="nav-publique" aria-label="Navigation principale">
-        <a href="#comment">Comment ça marche</a>
-        <a href="#parents">Parents</a>
-        <a href="/vitrine">Vitrine</a>
-        <a class="bouton-principal toujours" href="/connexion" id="bouton-entete">Se connecter</a>
-      </nav>
-    </div>
-  </header>
-
+<!-- @entete -->
   <main id="contenu">
-    <!-- Héros -->
     <section class="conteneur heros">
       <div>
-        <span class="surtitre">✨ Apprendre à coder, pour de vrai</span>
-        <h1>Construis <span class="degrade">ton propre site web</span>, une mission à la fois.</h1>
-        <p class="accroche">L'Atelier, c'est un atelier en ligne pour apprendre le <strong>HTML</strong>, le <strong>CSS</strong> et le <strong>JavaScript</strong>. Tu écris du code, ta page se construit sous tes yeux… et à la fin, ton site est en ligne.</p>
+        <p class="etiquette-code">// un atelier de code pour débutants</p>
+        <h1>Apprendre à coder en construisant <em>son propre site</em>.</h1>
+        <p class="accroche">Un atelier en ligne pour les collégiens qui n'ont jamais écrit une ligne de code. Des missions de quelques minutes, la page qui se construit pendant qu'on tape, et un mentor qui accompagne en visio.</p>
         <div class="actions">
-          <a class="bouton-principal" href="/connexion" id="bouton-heros">Entrer dans l'atelier →</a>
-          <a class="bouton-secondaire" href="/vitrine">🌍 Voir les sites des élèves</a>
+          <a class="bouton-principal" href="/connexion" id="bouton-heros">Entrer dans l'atelier</a>
+          <a class="lien-fleche" href="/vitrine">Voir les sites des élèves</a>
         </div>
-        <ul class="rassurance">
-          <li>✅ Gratuit</li>
-          <li>🚫 Sans publicité ni traceur</li>
-          <li>💻 Rien à installer</li>
+        <ul class="faits">
+          <li><strong data-nb-missions>28</strong> missions et <strong data-nb-defis>6</strong> défis</li>
+          <li><strong>0</strong> publicité, <strong>0</strong> traceur</li>
+          <li>Un navigateur suffit</li>
         </ul>
       </div>
-
-      <div class="demo" aria-hidden="true">
-        <div class="demo-barre"><i></i><i></i><i></i><span>index.html</span></div>
-        <div class="demo-corps">
-<pre class="demo-code"><span class="n">1 </span><span class="b">&lt;h1&gt;</span>Le repaire des gamers<span class="b">&lt;/h1&gt;</span>
-<span class="n">2 </span><span class="b">&lt;p&gt;</span>Mes jeux et mes astuces.<span class="b">&lt;/p&gt;</span>
-<span class="n">3 </span>
-<span class="n">4 </span><span class="b">&lt;section</span> <span class="a">class</span>=<span class="s">"carte"</span><span class="b">&gt;</span>
-<span class="n">5 </span>  <span class="b">&lt;h2&gt;</span>🎮 Mon top 3<span class="b">&lt;/h2&gt;</span>
-<span class="n">6 </span><span class="b">&lt;/section&gt;</span>
-<span class="n">7 </span>
-<span class="n">8 </span><span class="b">&lt;button&gt;</span>❤️ J'aime<span class="b">&lt;/button&gt;</span><span class="curseur"></span></pre>
-          <div class="demo-page">
-            <h3>Le repaire des gamers</h3>
-            <p>Mes jeux et mes astuces.</p>
-            <div class="demo-carte">🎮 Mon top 3</div>
-            <div class="demo-carte">💡 Mes astuces</div>
-            <span class="demo-bouton">❤️ J'aime · 12</span>
-          </div>
+      <div class="demo-live" id="demo-live" aria-label="Démonstration : du code HTML est tapé et la page se construit à côté" role="img">
+        <div class="fenetre-code">
+          <div class="barre-fenetre"><span class="actif">index.html</span><span>style.css</span><span>script.js</span></div>
+          <pre id="demo-code" aria-hidden="true"><span class="curseur"></span></pre>
         </div>
-        <div class="demo-reussite">✅ Mission réussie !</div>
+        <div class="fenetre-page" aria-hidden="true">
+          <div class="barre-fenetre">Aperçu en direct</div>
+          <div class="rendu" id="demo-rendu"></div>
+        </div>
+        <p class="coche-demo" id="demo-coche" aria-hidden="true">✓ Mission réussie</p>
       </div>
     </section>
 
-    <!-- Comment ça marche -->
     <section class="section" id="comment">
       <div class="conteneur">
-        <div class="section-titre">
-          <h2>Comment ça marche ?</h2>
-          <p>Pas besoin de rien connaître : on commence par une seule balise, et on avance à ton rythme.</p>
+        <div class="entete-section">
+          <h2>Comment se passe une séance</h2>
+          <p>Une heure en visio, le soir après les cours. Le mentor explique, l'élève code, et chaque mission ajoute quelque chose à son site.</p>
         </div>
-        <div class="etapes">
-          <article class="carte-publique">
-            <span class="etape-num">1</span>
-            <h3>Tu écris du code</h3>
-            <p>Chaque mission t'explique une notion avec des mots simples, un exemple à copier et des indices si tu bloques.</p>
-          </article>
-          <article class="carte-publique">
-            <span class="etape-num">2</span>
-            <h3>Ta page se construit en direct</h3>
-            <p>À chaque lettre tapée, l'aperçu se met à jour. Ta checklist se coche toute seule quand c'est bon. 🎉</p>
-          </article>
-          <article class="carte-publique">
-            <span class="etape-num">3</span>
-            <h3>Ton site est en ligne</h3>
-            <p>Ton mentor publie ton site : une vraie adresse et un QR code à montrer à tes proches.</p>
-          </article>
-        </div>
+        <ol class="frise">
+          <li>
+            <span class="numero" aria-hidden="true">01</span>
+            <div>
+              <h3>On lit la mission</h3>
+              <p>Un objectif en une phrase, la notion expliquée avec des mots simples, un exemple à copier. Et si ça bloque, deux indices, puis le mentor.</p>
+            </div>
+            <img src="/images/etape-1-mission.png" width="720" height="760" loading="lazy" alt="Le panneau d'une mission : son titre, son objectif, l'explication et la checklist des choses à faire.">
+          </li>
+          <li>
+            <span class="numero" aria-hidden="true">02</span>
+            <div>
+              <h3>On tape, la page se construit</h3>
+              <p>L'aperçu se met à jour à chaque lettre. La checklist se coche toute seule quand c'est bon, et les erreurs sont expliquées en français, avec le numéro de la ligne.</p>
+            </div>
+            <img src="/images/etape-2-direct.png" width="1800" height="1120" loading="lazy" alt="L'éditeur de code CSS à gauche et, à droite, l'aperçu du site de l'élève qui change de couleur.">
+          </li>
+          <li>
+            <span class="numero" aria-hidden="true">03</span>
+            <div>
+              <h3>On publie, on partage</h3>
+              <p>Quand l'élève le demande, le mentor relit son site puis le publie : une vraie adresse, et un QR code pour le montrer à la famille.</p>
+            </div>
+            <img src="/images/etape-3-mon-site.png" width="1120" height="978" loading="lazy" alt="La fenêtre « Mon site » avec un QR code, l'adresse du site et le nombre de visites.">
+          </li>
+        </ol>
       </div>
     </section>
 
-    <!-- Les modules -->
     <section class="section">
       <div class="conteneur">
-        <div class="section-titre">
-          <h2>Trois langages, un seul site : le tien</h2>
-          <p>Les missions ne sont pas des exercices dans le vide : chacune ajoute quelque chose à <strong>ton</strong> site, sur le thème que tu veux.</p>
+        <div class="entete-section">
+          <h2>Le programme</h2>
+          <p>Trois langages, dans l'ordre où on les apprend. Chaque module se débloque quand le précédent est maîtrisé.</p>
         </div>
-        <div class="modules">
-          <article class="carte-publique module-public html">
-            <span class="emoji" aria-hidden="true">🧱</span>
-            <h3>HTML</h3>
-            <p>La structure de ta page : titres, textes, listes, images, liens.</p>
-            <ul><li>Ton tout premier titre</li><li>Une image qui claque</li><li>Range ta page</li></ul>
-            <p class="compte">8 missions + 2 défis ⭐</p>
-          </article>
-          <article class="carte-publique module-public css">
-            <span class="emoji" aria-hidden="true">🎨</span>
-            <h3>CSS</h3>
-            <p>Le style : couleurs, polices, cartes, mise en page, animations.</p>
-            <ul><li>Change l'ambiance</li><li>Fais des cartes</li><li>Effet au survol</li></ul>
-            <p class="compte">6 missions + 2 défis ⭐</p>
-          </article>
-          <article class="carte-publique module-public js">
-            <span class="emoji" aria-hidden="true">⚡</span>
-            <h3>JavaScript</h3>
-            <p>Rends ta page vivante : boutons, messages, mode sombre, compteurs.</p>
-            <ul><li>Un bouton qui réagit</li><li>Change d'ambiance</li><li>Compteur de likes</li></ul>
-            <p class="compte">5 missions + 2 défis ⭐</p>
-          </article>
+        <div class="lignes-modules" id="lignes-modules">
+          <div class="ligne-module html"><h3>HTML</h3><span class="compte">11 missions + 2 défis</span><p>La structure de ta page : titres, textes, images, liens, formulaires.</p></div>
+          <div class="ligne-module css"><h3>CSS</h3><span class="compte">9 missions + 2 défis</span><p>Le style : couleurs, polices, mise en page, animations, téléphone.</p></div>
+          <div class="ligne-module js"><h3>JavaScript</h3><span class="compte">8 missions + 2 défis</span><p>Rendre la page vivante : boutons, conditions, boucles.</p></div>
         </div>
+        <p class="apres-lignes"><a class="lien-fleche" href="/programme">Voir toutes les missions</a></p>
       </div>
     </section>
 
-    <!-- Aperçu réel -->
     <section class="section">
-      <div class="conteneur">
-        <div class="section-titre">
-          <h2>L'atelier, en vrai</h2>
-          <p>La mission à gauche, ton code au centre, ta page à droite. Tout tient sur un seul écran.</p>
+      <div class="conteneur deux-colonnes">
+        <div>
+          <h2>Un humain derrière l'écran</h2>
+          <p>L'Atelier n'est pas un cours en vidéo. Il est né d'un mentorat entre un étudiant en informatique et un collégien, et ses missions ont été écrites pour ces séances.</p>
+          <p><a class="lien-fleche" href="/a-propos">L'histoire de l'Atelier</a></p>
         </div>
-        <figure class="capture">
-          <img src="/images/apercu-atelier.png" width="1440" height="900" loading="lazy" alt="Capture de l'atelier : à gauche la mission « Fais des cartes » avec sa checklist, au centre l'éditeur de code CSS, à droite l'aperçu du site de l'élève avec un fond violet et des cartes arrondies.">
-          <figcaption>Une mission CSS en cours : la checklist se coche toute seule pendant que tu tapes.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <!-- Atouts -->
-    <section class="section">
-      <div class="conteneur">
-        <div class="section-titre">
-          <h2>Pensé pour apprendre sans galérer</h2>
-          <p>Des missions courtes, vite gratifiantes, même après une longue journée de cours.</p>
-        </div>
-        <div class="atouts">
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">🗣️</span><div><h3>Erreurs expliquées</h3><p>Une balise oubliée ? Une faute de frappe ? L'atelier t'explique en français ce qui cloche, et à quelle ligne.</p></div></article>
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">🧑‍🏫</span><div><h3>Un mentor avec toi</h3><p>Ton mentor voit ton code en direct pendant la visio, et peut te montrer une ligne ou t'envoyer un indice.</p></div></article>
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">🏅</span><div><h3>Badges et défis</h3><p>Des badges à collectionner, des défis bonus pour aller plus loin, et un quiz d'échauffement.</p></div></article>
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">🧪</span><div><h3>Bac à sable</h3><p>Construis ce que tu veux, avec un mémo de toutes les notions débloquées, copiables en un clic.</p></div></article>
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">📱</span><div><h3>Ordinateur et téléphone</h3><p>Vérifie d'un clic à quoi ressemble ton site sur un écran de téléphone.</p></div></article>
-          <article class="carte-publique atout"><span class="icone" aria-hidden="true">💾</span><div><h3>Rien ne se perd</h3><p>Ton travail est enregistré automatiquement, et tu peux télécharger ton site quand tu veux.</p></div></article>
+        <div>
+          <p class="citation">Les missions sont courtes parce que les séances ont lieu après une longue journée de cours : il faut voir un résultat vite.</p>
+          <p>Pendant la séance, le mentor voit le code de l'élève en direct, peut lui montrer une ligne d'un clic ou lui envoyer un indice. Entre deux séances, l'élève peut continuer seul : tout est enregistré automatiquement.</p>
         </div>
       </div>
     </section>
 
-    <!-- Vitrine (remplie par le JS s'il y a des sites) -->
     <section class="section" id="section-vitrine" hidden>
       <div class="conteneur">
-        <div class="section-titre">
-          <h2>Les dernières créations</h2>
-          <p>Des sites codés de A à Z par des élèves de l'Atelier.</p>
+        <div class="entete-section">
+          <h2>Dernières créations</h2>
+          <p>Des sites codés de A à Z par des élèves de l'Atelier, publiés avec leur accord.</p>
         </div>
         <div class="grille-vitrine" id="apercu-vitrine"></div>
-        <p class="actions centre"><a class="bouton-secondaire" href="/vitrine">Voir toute la vitrine →</a></p>
+        <p class="apres-lignes"><a class="lien-fleche" href="/vitrine">Toute la vitrine</a></p>
       </div>
     </section>
 
-    <!-- Parents -->
     <section class="section" id="parents">
-      <div class="conteneur bloc-confiance">
+      <div class="conteneur deux-colonnes">
         <div>
-          <h2>👨‍👩‍👧 Pour les parents</h2>
-          <p>L'Atelier est un projet personnel et bénévole de mentorat. Il est conçu pour des élèves débutants, à partir du collège, accompagnés par un mentor lors de séances en visio.</p>
-          <p><a href="/confidentialite">Lire la politique de confidentialité →</a></p>
+          <h2>Parents : ce qu'il faut savoir</h2>
+          <p>L'accès se fait uniquement sur invitation du mentor. Vous êtes informés de ce qui est enregistré, et vous pouvez vous y opposer à tout moment.</p>
+          <p><a class="lien-fleche" href="/parents">La page d'information pour les parents</a></p>
         </div>
-        <ul class="liste-coches">
-          <li>Aucune inscription libre : chaque accès est créé par le mentor.</li>
-          <li>Seulement un pseudo : jamais de nom, d'e-mail, d'âge ni de photo.</li>
-          <li>Aucune publicité, aucun traceur, aucune revente de données.</li>
-          <li>Le code de l'élève tourne dans un espace isolé : il ne peut rien casser.</li>
-          <li>Les sites publiés ne sont pas référencés par les moteurs de recherche.</li>
-          <li>Données hébergées en France, sauvegardes chiffrées.</li>
+        <ul class="liste-garanties">
+          <li><span>Un <strong>pseudo</strong> seulement : jamais de nom, d'e-mail, d'âge ni de photo.</span></li>
+          <li><span>Aucune publicité, aucun traceur, aucune revente de données.</span></li>
+          <li><span>Le code de l'élève tourne dans un espace isolé : il ne peut rien casser.</span></li>
+          <li><span>Rien n'est publié sans la demande de l'élève, et il peut retirer son site à tout moment.</span></li>
+          <li><span>Les sites publiés ne sont pas référencés par les moteurs de recherche.</span></li>
+          <li><span>Données hébergées en France, sauvegardes chiffrées.</span></li>
         </ul>
       </div>
     </section>
 
-    <!-- FAQ -->
     <section class="section" id="faq">
       <div class="conteneur">
-        <div class="section-titre"><h2>Questions fréquentes</h2></div>
+        <div class="entete-section"><h2>Questions fréquentes</h2></div>
         <div class="faq">
-          <details><summary>Comment s'inscrire ?</summary><p>Il n'y a pas d'inscription libre. L'Atelier fonctionne avec un mentor : c'est lui qui crée ton accès et te donne ton lien personnel (ou ton code à taper sur la page de connexion).</p></details>
+          <details><summary>Comment s'inscrire ?</summary><p>Il n'y a pas d'inscription libre : l'Atelier fonctionne avec un mentor. C'est lui qui crée l'accès et donne à l'élève son lien personnel (ou un code à taper sur la page de connexion).</p></details>
           <details><summary>C'est payant ?</summary><p>Non. L'Atelier est gratuit, sans publicité et sans abonnement.</p></details>
-          <details><summary>Faut-il installer quelque chose ?</summary><p>Non, un navigateur récent suffit (Chrome, Edge, Firefox ou Safari), sur ordinateur de préférence.</p></details>
-          <details><summary>Il faut déjà savoir coder ?</summary><p>Pas du tout. La première mission consiste à écrire une seule balise. Chaque mot technique est expliqué la première fois qu'il apparaît.</p></details>
-          <details><summary>Je peux continuer seul entre les séances ?</summary><p>Oui : ton travail est sauvegardé automatiquement et tu retrouves tout avec ton lien. Le mode Bac à sable est parfait pour ça.</p></details>
-          <details><summary>Que devient mon site à la fin ?</summary><p>Il reste en ligne à son adresse tant que tu le souhaites, et tu peux le télécharger (fichiers HTML, CSS et JS) pour le garder pour toujours.</p></details>
+          <details><summary>Faut-il installer quelque chose ?</summary><p>Non, un navigateur récent suffit (Chrome, Edge, Firefox ou Safari), de préférence sur un ordinateur.</p></details>
+          <details><summary>Il faut déjà savoir coder ?</summary><p>Pas du tout. La première mission consiste à écrire une seule balise, et chaque mot technique est expliqué la première fois qu'il apparaît.</p></details>
+          <details><summary>Peut-on continuer seul entre les séances ?</summary><p>Oui : le travail est enregistré automatiquement, et on retrouve tout avec son lien. Le mode Bac à sable est fait pour ça.</p></details>
+          <details><summary>Que devient le site à la fin ?</summary><p>Il reste en ligne tant que l'élève le souhaite, et il peut télécharger ses fichiers (HTML, CSS et JavaScript) pour les garder.</p></details>
         </div>
-      </div>
-    </section>
-
-    <!-- Appel final -->
-    <section class="section">
-      <div class="conteneur appel-final">
-        <h2>Prêt à écrire ta première balise ?</h2>
-        <p>Il te faut juste ton lien ou ton code d'accès.</p>
-        <div class="actions"><a class="bouton-principal" href="/connexion">Entrer dans l'atelier →</a></div>
       </div>
     </section>
   </main>
-
-  <footer class="pied-public">
-    <div class="conteneur">
-      <p>© 2026 L'Atelier · un projet de <a href="https://juleslfl.dev" rel="noopener">Jules_LFL</a></p>
-      <nav aria-label="Liens utiles">
-        <a href="/vitrine">Vitrine</a>
-        <a href="/connexion">Connexion</a>
-        <a href="/mentor">Espace mentor</a>
-        <a href="/mentions-legales">Mentions légales</a>
-        <a href="/confidentialite">Confidentialité</a>
-        <a href="/conditions">Conditions d'utilisation</a>
-      </nav>
-    </div>
-  </footer>
+<!-- @pied -->
   <script type="module" src="/src/public/accueil.js"></script>
 </body>
 </html>

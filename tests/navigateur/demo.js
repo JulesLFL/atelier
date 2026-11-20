@@ -63,6 +63,8 @@ for (const [pseudo, code] of Object.entries(SITES)) {
   if (pseudo !== 'nova') {
     bdd.definirDeblocage(eleve.id, 'module:js', 'ouvert');
     bdd.definirAccords(eleve.id, { publication: Date.now(), vitrine: Date.now() });
+    bdd.definirParentsInformes(eleve.id, Date.now());
+    bdd.accepterCharte(eleve.id);
     bdd.publier(eleve.id, ['html', 'css', 'js']);
     bdd.definirVitrine(eleve.id, true);
   }
@@ -73,50 +75,83 @@ bdd.definirMissionCourante(eleves.nova.id, 'css-4');
 bdd.noterQuizPropose(eleves.nova.id); // pas de quiz sur la capture
 service.attribuerBadges(eleves.nova.id); // pas de notification de badge sur la capture
 bdd.definirAccords(eleves.nova.id, { publication: Date.now(), vitrine: Date.now() });
+bdd.definirParentsInformes(eleves.nova.id, Date.now());
+bdd.accepterCharte(eleves.nova.id);
 bdd.publier(eleves.nova.id, ['html', 'css']);
 bdd.definirVitrine(eleves.nova.id, true);
 
 const nav = await lancerFirefox({ largeur: 1440, hauteur: 900 });
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+const IMAGES = path.dirname(IMAGE_ACCUEIL);
+const DIST_IMAGES = path.join(RACINE, 'dist', 'images');
+mkdirSync(DIST_IMAGES, { recursive: true });
+const garder = (nom) => {
+  copyFileSync(path.join(IMAGES, nom), path.join(DIST_IMAGES, nom));
+  console.log(`📸 client/public/images/${nom}`);
+};
+const rect = (selecteur) => nav.evaluer(`(() => { const r = document.querySelector(${JSON.stringify(selecteur)}).getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()`);
+
 try {
-  // 1. L'atelier (illustration de la page d'accueil)
+  // 1. L'atelier, en haute définition (densité 2) pour des images nettes
+  await nav.taille(1440, 900, 2);
   await nav.aller(`${BASE}/e/${eleves.nova.acces}`);
   await nav.attendre("document.querySelector('#onglet-css')");
   await nav.evaluer("document.querySelector('#onglet-css').click()");
   await nav.attendre("document.querySelectorAll('#checklist li.ok').length >= 2", { message: 'checklist' });
   await nav.evaluer("document.querySelectorAll('.notif').forEach(n => n.remove())");
-  // On fait défiler la mission jusqu'à la checklist (qui se coche en direct)
-  await nav.evaluer("document.querySelector('#checklist').scrollIntoView({ block: 'end' })");
   await pause(600);
   await nav.capture(IMAGE_ACCUEIL);
-  copyFileSync(IMAGE_ACCUEIL, path.join(RACINE, 'dist', 'images', 'apercu-atelier.png'));
-  console.log('📸 client/public/images/apercu-atelier.png');
+  garder('apercu-atelier.png');
 
-  // 2. Pages publiques, ordinateur puis téléphone
-  const pages = [
-    ['accueil', '/'],
-    ['connexion', '/connexion'],
-    ['vitrine', '/vitrine'],
-    ['mentions-legales', '/mentions-legales'],
-    ['confidentialite', '/confidentialite'],
-    ['conditions', '/conditions'],
-  ];
+  // Étape 1 : le haut de la mission (titre, objectif, explication)
+  const panneau = await rect('.panneau-gauche');
+  await nav.capture(path.join(IMAGES, 'etape-1-mission.png'), { zone: { x: panneau.x, y: panneau.y, width: 360, height: 380 } });
+  garder('etape-1-mission.png');
+  // Étape 2 : l'éditeur et l'aperçu en direct
+  const editeur = await rect('.zone-editeur');
+  await nav.capture(path.join(IMAGES, 'etape-2-direct.png'), { zone: { x: editeur.x, y: editeur.y, width: 900, height: 560 } });
+  garder('etape-2-direct.png');
+  // Étape 3 : « Mon site » (QR code)
+  await nav.evaluer("document.querySelector('#bouton-mon-site').click()");
+  await nav.attendre("document.querySelector('canvas.qr')");
+  await pause(500);
+  const modal = await rect('.modal');
+  await nav.capture(path.join(IMAGES, 'etape-3-mon-site.png'), { zone: modal });
+  console.log(`   (taille de l'étape 3 : ${Math.round(modal.width)}×${Math.round(modal.height)})`);
+  garder('etape-3-mon-site.png');
+
+  // 2. Image de partage (Open Graph) : le haut de l'accueil, thème clair, une fois l'animation finie
   await nav.evaluer("fetch('/api/sortie', { method: 'POST', headers: { 'X-Atelier': '1' } }).then(() => true)");
-  for (const [ecran, largeur, hauteur] of [
-    ['ordinateur', 1440, 900],
-    ['telephone', 390, 844],
+  await nav.taille(1200, 630, 1);
+  await nav.aller(`${BASE}/`);
+  await nav.evaluer("(localStorage.setItem('atelier:theme', 'clair'), true)");
+  await nav.aller(`${BASE}/`);
+  await nav.attendre("document.querySelector('#demo-coche.visible')", { delai: 15000, message: 'animation de l’accueil' });
+  await pause(500);
+  await nav.capture(path.join(IMAGES, 'og.png'));
+  garder('og.png');
+
+  // 3. Pages publiques : ordinateur (clair et sombre) et téléphone
+  const pages = ['/', '/programme', '/vitrine', '/journal', '/a-propos', '/parents', '/connexion', '/mentions-legales', '/confidentialite', '/conditions', '/page-qui-n-existe-pas'];
+  const nomDe = (a) => (a === '/' ? 'accueil' : a.slice(1));
+  const parcourir = () =>
+    nav.evaluer(`(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 500) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); }
+      scrollTo(0, 0);
+      return true;
+    })()`);
+  for (const [ecran, largeur, hauteur, theme, liste] of [
+    ['ordinateur', 1440, 900, 'clair', pages],
+    ['ordinateur-sombre', 1440, 900, 'sombre', ['/', '/programme', '/vitrine', '/journal']],
+    ['telephone', 390, 844, 'clair', ['/', '/programme', '/parents', '/vitrine']],
   ]) {
-    await nav.taille(largeur, hauteur);
-    for (const [nom, adresse] of pages) {
+    await nav.taille(largeur, hauteur, 1);
+    await nav.evaluer(`(localStorage.setItem('atelier:theme', '${theme}'), true)`);
+    for (const adresse of liste) {
       await nav.aller(`${BASE}${adresse}`);
-      // Les images et miniatures se chargent au défilement (loading="lazy") : on parcourt la page.
-      await nav.evaluer(`(async () => {
-        for (let y = 0; y < document.body.scrollHeight; y += 500) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); }
-        scrollTo(0, 0);
-        return true;
-      })()`);
-      await pause(nom === 'vitrine' || nom === 'accueil' ? 2000 : 400);
-      const fichier = path.join(CAPTURES, `site-${nom}-${ecran}.png`);
+      await parcourir();
+      await pause(adresse === '/' ? 7000 : adresse === '/vitrine' ? 2000 : 500);
+      const fichier = path.join(CAPTURES, `site-${nomDe(adresse)}-${ecran}.png`);
       await nav.capture(fichier, { pleinePage: true });
       console.log(`📸 ${path.relative(RACINE, fichier)}`);
     }
