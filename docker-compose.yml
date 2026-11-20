@@ -16,9 +16,11 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-https://latelier.juleslfl.dev}
       NODE_ENV: production
       DATA_DIR: /data
-      PORT: 3000 # port INTERNE du conteneur (le port de ton NAS se règle avec PORT dans .env)
+      PORT: 3000 # port INTERNE du conteneur (celui du NAS se règle avec la variable PORT)
     ports:
-      - "${PORT:-3080}:3000"
+      - "${PORT:-30085}:3000" # accès depuis le réseau de la maison : http://IP-DU-NAS:30085
+    networks:
+      - web_tunnel
     volumes:
       - atelier-donnees:/data # la base SQLite : elle survit aux mises à jour du conteneur
     # Variante : un dossier précis du NAS au lieu d'un volume Docker (voir README)
@@ -29,19 +31,12 @@ services:
     tmpfs:
       - /tmp
 
-  # Tunnel Cloudflare (optionnel) : activé avec COMPOSE_PROFILES=tunnel dans .env.
-  # Inutile si cloudflared tourne déjà ailleurs sur ton NAS.
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: atelier-tunnel
-    profiles: ["tunnel"]
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
-    depends_on:
-      atelier:
-        condition: service_healthy
-
 volumes:
   atelier-donnees:
+
+networks:
+  # Réseau partagé avec le conteneur cloudflared du NAS : le tunnel joint l'Atelier
+  # à l'adresse http://atelier:3000 (règle « ingress » dans /mnt/NAS/cloudflared/config.yml).
+  # En local, crée-le une seule fois avec :  docker network create web_tunnel
+  web_tunnel:
+    external: true

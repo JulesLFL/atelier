@@ -26,7 +26,7 @@ Le mentor suit tout en temps réel, débloque les étapes et publie le site fina
 
 ## 1. Lancer en local
 
-Prérequis : **Node.js 22** ou plus.
+Prérequis : **Node.js 22** ou plus. (Pour tester avec Docker en local : `docker network create web_tunnel` une seule fois.)
 
 ```bash
 npm install
@@ -91,10 +91,10 @@ La base SQLite est dans un **volume persistant** (`atelier-donnees`) : elle surv
    | `MENTOR_PASSWORD` | ton mot de passe mentor |
    | `SESSION_SECRET` | 64 caractères aléatoires (`openssl rand -hex 32`) |
    | `PUBLIC_URL` | `https://latelier.juleslfl.dev` |
-   | `PORT` | `3080` (port du NAS, choisis-en un libre) |
+   | `PORT` | `30085` (accès depuis la maison : `http://IP-DU-NAS:30085`) |
 
 5. **Deploy the stack**. Le premier build prend 2 à 3 minutes.
-6. Vérifie : `http://IP-DU-NAS:3080/mentor`.
+6. Vérifie : `http://IP-DU-NAS:30085/mentor`.
 
 **Mettre à jour** après un `git push` : stack → **Pull and redeploy** (coche « Re-pull image and redeploy »).
 
@@ -137,39 +137,49 @@ L'application tourne avec un utilisateur non-root, sur un système de fichiers e
 
 ## 3. Cloudflare Tunnel (latelier.juleslfl.dev)
 
-Le tunnel relie ton NAS à Internet **sans ouvrir de port** sur ta box. Le temps réel (WebSocket) passe par le tunnel sans réglage particulier.
+Le site passe par le **tunnel Cloudflare déjà en place sur le NAS** (conteneur `cloudflared`, tunnel « géré localement »). Aucun port n'est ouvert sur la box, et le temps réel (WebSocket) passe par le tunnel sans réglage particulier.
 
-> **Le sous-domaine** : `latelier` est un sous-domaine de **ton** domaine, donc personne d'autre ne peut le prendre. Vérifie juste dans Cloudflare → `juleslfl.dev` → **DNS** qu'aucun enregistrement `latelier` n'existe déjà. Autres idées : `atelier`, `code`, `labo`. Si tu changes de nom, mets à jour `PUBLIC_URL`.
+La stack rejoint le réseau Docker **`web_tunnel`** (déclaré `external` dans `docker-compose.yml`). Le tunnel joint donc l'Atelier à l'adresse **`http://atelier:3000`**, avec le nom du conteneur.
 
-### Cas 1 : tu as déjà `cloudflared` sur le NAS
+### a) Déclarer l'adresse dans le tunnel
 
-1. Cloudflare **Zero Trust** → **Networks** → **Tunnels** → ton tunnel → **Public Hostname** → **Add a public hostname**.
-2. **Subdomain** : `latelier` · **Domain** : `juleslfl.dev`
-3. **Service** : `HTTP` → `IP-DU-NAS:3080`, ou `atelier:3000` si cloudflared est dans le même réseau Docker.
-4. Enregistre.
+TrueNAS › **System** › **Shell** :
 
-### Cas 2 : laisser `docker compose` lancer le tunnel
+```bash
+sudo nano /mnt/NAS/cloudflared/config.yml
+```
 
-1. Zero Trust → **Networks** → **Tunnels** → **Create a tunnel** → **Cloudflared** → nomme-le `atelier`.
-2. Copie le **jeton** (la longue chaîne après `--token` dans la commande proposée).
-3. Ajoute dans `.env` (ou dans les variables Portainer) :
+Ajoute la règle **avant** la dernière ligne (`- service: http_status:404`, qui doit toujours rester en dernier) :
 
-   ```ini
-   COMPOSE_PROFILES=tunnel
-   TUNNEL_TOKEN=eyJh...
-   ```
+```yaml
+  - hostname: latelier.juleslfl.dev
+    service: http://atelier:3000
+```
 
-4. Dans le tunnel → **Public Hostname** : `latelier` . `juleslfl.dev` → Service `HTTP` → `atelier:3000`.
-5. `docker compose up -d` lance alors aussi le conteneur `atelier-tunnel`.
+Puis redémarre le conteneur `cloudflared` dans Portainer. Ses logs doivent afficher `Registered tunnel connection`.
 
-### Réglages Cloudflare à vérifier
+### b) Créer l'entrée DNS
 
-- **WebSockets** : `juleslfl.dev` → **Network** → *WebSockets* = **On** (c'est la valeur par défaut). Sans ça, le direct passe par le *polling* : ça marche, mais c'est moins réactif.
-- **Rocket Loader** et **Email Address Obfuscation** (*Speed* / *Scrape Shield*) : à **désactiver** pour ce sous-domaine (via *Configuration Rules*). Ils modifient le HTML et le JavaScript des pages, y compris le site de l'élève.
-- **SSL/TLS** : le tunnel est chiffré de bout en bout. `PUBLIC_URL` en `https://` active automatiquement les cookies `Secure`.
-- *(Optionnel)* **Cloudflare Access** sur le chemin `latelier.juleslfl.dev/mentor` : une connexion par e-mail en plus du mot de passe mentor. Ne protège **pas** `/`, `/e/*` ni `/site/*`, sinon l'élève et ses proches seraient bloqués.
+Cloudflare › `juleslfl.dev` › **DNS** › **Records** › **Add record** :
+
+| Type | Nom | Cible | Proxy |
+|---|---|---|---|
+| `CNAME` | `latelier` | `<identifiant-du-tunnel>.cfargotunnel.com` (la même cible que les autres sous-domaines) | ✅ Proxied (nuage orange) |
+
+> Le sous-domaine est libre tant qu'aucun enregistrement `latelier` n'existe déjà dans ta zone DNS. Si tu en choisis un autre, change aussi `PUBLIC_URL`.
+
+### c) Réglages Cloudflare à vérifier
+
+- **WebSockets** : `juleslfl.dev` › **Network** › *WebSockets* = **On** (valeur par défaut). Sans ça, le direct passe par le *polling* : ça marche, mais c'est moins réactif.
+- **Rocket Loader** et **Email Address Obfuscation** : à **désactiver** pour `latelier.juleslfl.dev` (*Rules* › *Configuration Rules*). Ils modifient le HTML et le JavaScript des pages, y compris le site de l'élève.
+- **Cache** : les fichiers de `/assets/` ont un nom qui change à chaque build, donc pas besoin de numéro de version. Les pages, l'API et `/site/*` sont envoyées avec `no-cache` ou `no-store`.
+- *(Optionnel)* une **règle de pare-feu** (comme pour `admin.juleslfl.dev`) sur le chemin `/mentor` et `/api/mentor`, par exemple « bloquer hors de France ». Ne bloque **pas** `/`, `/e/*`, `/entree`, `/site/*` ni `/socket.io/*`, sinon l'élève et ses proches seraient bloqués.
 
 L'application lit la vraie IP du visiteur dans l'en-tête `CF-Connecting-IP`, uniquement pour limiter les essais de mot de passe et de code. Cette IP n'est **jamais enregistrée**.
+
+### Si tu n'as pas (encore) de tunnel
+
+Crée un réseau `docker network create web_tunnel`, puis un conteneur `cloudflared` sur ce réseau. Il suffit ensuite de pointer un nom public vers `http://atelier:3000`. La documentation de Cloudflare explique les deux modes (tableau de bord ou fichier `config.yml`).
 
 ---
 
