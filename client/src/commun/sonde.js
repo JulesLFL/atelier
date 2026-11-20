@@ -197,10 +197,11 @@
     }
   });
 
+  // ⚠️ Pas de requestAnimationFrame ici : Chrome, Edge et Safari le mettent en pause dans les
+  // iframes d'une autre origine qui sont hors de l'écran (le banc d'essai) ou pas encore touchées
+  // (Safari iOS). Le signal « prêt » ne partirait jamais. Une minuterie marche partout.
   window.addEventListener('load', function () {
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () { envoyer({ type: 'pret' }); });
-    });
+    setTimeout(function () { envoyer({ type: 'pret' }); }, 50);
   });
 
   // Dans le banc d'essai : pas d'animations, pour lire les styles finaux tout de suite.
