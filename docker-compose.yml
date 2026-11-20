@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------
+#  L'Atelier : lancement avec  docker compose up -d
+#  Configuration : copie .env.example en .env et remplis-le.
+# ---------------------------------------------------------------
+services:
+  atelier:
+    build: .
+    image: atelier:latest
+    container_name: atelier
+    restart: unless-stopped
+    # Les valeurs viennent du fichier .env (en ligne de commande)
+    # ou des « Environment variables » de la stack (dans Portainer).
+    environment:
+      MENTOR_PASSWORD: ${MENTOR_PASSWORD:?Il manque MENTOR_PASSWORD (voir .env.example)}
+      SESSION_SECRET: ${SESSION_SECRET:?Il manque SESSION_SECRET (voir .env.example)}
+      PUBLIC_URL: ${PUBLIC_URL:-https://latelier.juleslfl.dev}
+      NODE_ENV: production
+      DATA_DIR: /data
+      PORT: 3000 # port INTERNE du conteneur (le port de ton NAS se règle avec PORT dans .env)
+    ports:
+      - "${PORT:-3080}:3000"
+    volumes:
+      - atelier-donnees:/data # la base SQLite : elle survit aux mises à jour du conteneur
+    # Variante : un dossier précis du NAS au lieu d'un volume Docker (voir README)
+    #  - /mnt/tank/apps/atelier:/data
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # Tunnel Cloudflare (optionnel) : activé avec COMPOSE_PROFILES=tunnel dans .env.
+  # Inutile si cloudflared tourne déjà ailleurs sur ton NAS.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: atelier-tunnel
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      atelier:
+        condition: service_healthy
+
+volumes:
+  atelier-donnees:

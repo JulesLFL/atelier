@@ -1,0 +1,7 @@
+node_modules/
+dist/
+donnees/
+.env
+*.db
+*.db-*
+tests/navigateur/captures/

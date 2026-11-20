@@ -1,0 +1,80 @@
+.page-entree {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 20% 15%, rgb(124 58 237 / 0.25), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgb(56 189 248 / 0.15), transparent 45%),
+    var(--fond);
+}
+.carte-entree {
+  width: min(420px, 100%);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--bord);
+  border-radius: 20px;
+  padding: 36px 28px 28px;
+  box-shadow: var(--ombre);
+  animation: monte 0.35s ease-out;
+}
+.logo-grand {
+  display: inline-grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  font: 800 1.6rem var(--police-code);
+  box-shadow: 0 10px 30px rgb(124 58 237 / 0.45);
+}
+.carte-entree h1 {
+  margin: 16px 0 4px;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+.sous-titre {
+  color: var(--texte-doux);
+  margin: 0 0 28px;
+}
+.carte-entree form {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+.carte-entree label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--texte-doux);
+}
+.carte-entree input {
+  width: 100%;
+  background: var(--editeur-fond);
+  border: 2px solid var(--bord-fort);
+  border-radius: 10px;
+  padding: 14px;
+  font: 600 1.35rem var(--police-code);
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.carte-entree input:focus {
+  border-color: var(--accent-vif);
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(139 92 246 / 0.25);
+}
+.carte-entree .bouton-principal {
+  padding: 0.85em;
+  font-size: 1.05rem;
+}
+.erreur {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--erreur);
+  font-size: 0.9rem;
+}
+.aide {
+  color: var(--texte-pale);
+  font-size: 0.85rem;
+  margin: 18px 0 0;
+}
