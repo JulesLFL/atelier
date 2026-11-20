@@ -41,8 +41,9 @@ Le mentor suit tout en temps réel, débloque les étapes et publie le site fina
 6. [Ajouter ou modifier une mission](#6-ajouter-ou-modifier-une-mission)
 7. [Utilisation pendant une séance](#7-utilisation-pendant-une-séance)
 8. [Sécurité et données](#8-sécurité-et-données)
-9. [Organisation du code](#9-organisation-du-code)
-10. [Publier le code sur GitHub](#10-publier-le-code-sur-github)
+9. [Entretenir le site](#9-entretenir-le-site) : journal, surveillance, identité visuelle
+10. [Organisation du code](#10-organisation-du-code)
+11. [Publier le code sur GitHub](#11-publier-le-code-sur-github)
 
 ---
 
@@ -383,13 +384,17 @@ L'accord de l'élève, lui, est imposé par l'application : il demande la public
 
 ---
 
+---
+
+## 9. Entretenir le site
+
 ### Journal de l'atelier
 
 À **chaque mise à jour**, ajoute une entrée en haut de [`contenu/journal.js`](contenu/journal.js) (version, date, et les changements en langage simple). Elle s'affiche sur la page `/journal`.
 
-### Surveillance (status.juleslfl.dev)
+### Surveillance sur status.juleslfl.dev
 
-Dans le tableau de bord de ton Portfolio, onglet de la page de statut, ajoute un service :
+Dans le **tableau de bord de ton Portfolio** (`admin.juleslfl.dev`), dans les réglages de la **page de statut**, ajoute un service :
 
 | Champ | Valeur |
 |---|---|
@@ -409,7 +414,7 @@ Dans le tableau de bord de ton Portfolio, onglet de la page de statut, ajoute un
 
 ---
 
-## 9. Organisation du code
+## 10. Organisation du code
 
 ```
 contenu/missions.js        ← LES MISSIONS, défis et quiz (le seul fichier à modifier pour le contenu)
@@ -453,7 +458,7 @@ tests/                     vitest (serveur, règles, outils) + navigateur/ (Fire
 
 ---
 
-## 10. Publier le code sur GitHub
+## 11. Publier le code sur GitHub
 
 Le dossier `atelier/` est un dépôt Git autonome. `.gitignore` exclut déjà `.env`, `node_modules/`, `dist/`, la base de données et les captures de test.
 
