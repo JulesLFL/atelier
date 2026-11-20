@@ -6,6 +6,9 @@ services:
   atelier:
     build: .
     image: atelier:latest
+    # L'image est construite sur place (jamais téléchargée) : évite l'erreur
+    # « pull access denied for atelier » quand Portainer fait « Re-pull image ».
+    pull_policy: build
     container_name: atelier
     restart: unless-stopped
     # Les valeurs viennent du fichier .env (en ligne de commande)
