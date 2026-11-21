@@ -1,6 +1,6 @@
 # 🛠️ L'Atelier
 
-Un mini site pour apprendre le développement web **en construisant son propre site**.
+Un site pour apprendre le développement web **en construisant son propre site**, pour les débutants de tout âge.
 L'élève écrit du HTML, puis du CSS, puis du JavaScript, et voit sa page se construire en direct.
 Le mentor suit tout en temps réel, débloque les étapes et publie le site final.
 
@@ -328,7 +328,7 @@ Puis redémarre le serveur, ou fais `git push` puis *Pull and redeploy* sur le N
 ## 7. Utilisation pendant une séance
 
 1. **Avant la première séance** : `/mentor` → **+ Nouveau** → pseudo (pas de nom de famille). Copie le **lien personnel** et envoie-le à l'élève. Il n'est affiché qu'une fois, car il est stocké chiffré. Si l'élève le perd : onglet **Accès** → *Générer un nouveau lien*.
-   Envoie aussi aux parents le lien de la page **`/parents`** (information, aucune signature), puis note-le dans l'onglet **🔑 Accès**. À sa première connexion, l'élève lit et accepte une courte charte.
+   Indique s'il est **mineur** (seule cette information est gardée, jamais l'âge). Si oui, envoie à ses parents le lien de la page **`/parents`** (information, aucune signature), puis note-le dans l'onglet **🔑 Accès**. À sa première connexion, l'élève lit et accepte une courte charte.
 2. **Pendant la séance** : onglet **🔴 Direct**. Tu y vois le code, l'aperçu, la console (avec ses erreurs JS et HTML), la mission en cours, sa checklist et les indices utilisés.
    - **Clique sur un numéro de ligne** : elle est surlignée chez l'élève, avec une notification « Ton mentor te montre la ligne 12 ».
    - La barre du bas envoie un **message**, un **indice** (il reste affiché jusqu'à ce que l'élève le ferme) ou lance un **🧩 quiz** de 3 questions.
@@ -376,7 +376,7 @@ Engagements pris dans la politique de confidentialité, à tenir à la main :
 - supprimer les comptes inactifs depuis plus d'un an (le panneau mentor les signale par un 💤) ;
 - répondre aux demandes d'accès ou de suppression sous un mois ;
 - relire un site avant de le publier ;
-- **informer les parents** avant toute publication : envoie-leur le lien de la page `/parents` (aucune signature), puis clique sur « Les parents ont été informés » (onglet 🔑 Accès). Sans ça, le serveur refuse de publier.
+- pour un **élève mineur** (case cochée à sa création, modifiable dans l'onglet 🔑 Accès), **informer ses parents** avant toute publication : envoie-leur le lien de la page `/parents` (aucune signature), puis clique sur « Les parents ont été informés ». Sans ça, le serveur refuse de publier. Pour un élève majeur, cette étape n'existe pas.
 
 Documents internes (RGPD) : [`docs/registre-des-traitements.md`](docs/registre-des-traitements.md) et [`docs/analyse-impact.md`](docs/analyse-impact.md). Mets-les à jour si tu ajoutes des données ou un prestataire.
 
@@ -410,7 +410,8 @@ Dans le **tableau de bord de ton Portfolio** (`admin.juleslfl.dev`), dans les r�
 - **Mise en page** : alignée à gauche, filets et espace plutôt que cartes ; des cartes seulement pour les vrais objets (sites de la vitrine).
 - **Images** : de vraies captures de l'atelier (`npm run captures`), jamais d'icônes génériques à la place.
 - **Texte** : concret, écrit pour des élèves et des parents ; pas de slogans creux.
-- **Mouvement** : une seule animation qui raconte le concept (le code tapé, la page qui se construit), coupée si l'appareil demande moins d'animations.
+- **Mouvement** : une animation qui raconte le concept (le code tapé, la page qui se construit), et le changement de thème en cercle depuis le bouton. Toutes deux coupées si l'appareil demande moins d'animations.
+- **Public** : des débutants de tout âge. Tutoiement, ton simple mais jamais enfantin.
 
 ---
 

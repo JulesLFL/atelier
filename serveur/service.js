@@ -104,6 +104,7 @@ export function creerService({ bdd, catalogue, config, discord }) {
       urlSite: urlSite(eleve.pseudo),
       quiz: bdd.quiz(eleveId, 10),
       parentsInformes: eleve.parents_informes,
+      mineur: Boolean(eleve.mineur),
     };
   }
 

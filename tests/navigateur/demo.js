@@ -73,12 +73,12 @@ for (const [pseudo, code] of Object.entries(SITES)) {
 for (const id of ['css-1', 'css-2', 'css-3']) bdd.reussirMission(eleves.nova.id, id, false);
 bdd.definirMissionCourante(eleves.nova.id, 'css-4');
 bdd.noterQuizPropose(eleves.nova.id); // pas de quiz sur la capture
-service.attribuerBadges(eleves.nova.id); // pas de notification de badge sur la capture
 bdd.definirAccords(eleves.nova.id, { publication: Date.now(), vitrine: Date.now() });
 bdd.definirParentsInformes(eleves.nova.id, Date.now());
 bdd.accepterCharte(eleves.nova.id);
 bdd.publier(eleves.nova.id, ['html', 'css']);
 bdd.definirVitrine(eleves.nova.id, true);
+service.attribuerBadges(eleves.nova.id); // badges déjà gagnés : pas de confettis sur les captures
 
 const nav = await lancerFirefox({ largeur: 1440, hauteur: 900 });
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));

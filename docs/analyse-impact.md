@@ -12,14 +12,14 @@ L'article 35 du RGPD impose une analyse d'impact quand un traitement est « susc
 | 4. Données sensibles ou très personnelles | Non | Pseudo et travail scolaire uniquement. |
 | 5. Grande échelle | Non | Quelques élèves. |
 | 6. Croisement de données | Non | Aucun. |
-| 7. Personnes vulnérables | **Oui** | Les élèves sont mineurs. |
+| 7. Personnes vulnérables | **Oui** | Une partie des élèves peut être mineure (le public est de tout âge). |
 | 8. Usage innovant | Non | Technologies web classiques. |
 | 9. Exclusion d'un droit ou d'un service | Non | Aucune. |
 
 **Conclusion** : un seul critère est pleinement rempli (personnes vulnérables). Une analyse d'impact complète **n'est pas requise**. En contrepartie, des garanties spécifiques sont appliquées pour les mineurs :
 
 - minimisation : pseudo uniquement, aucune donnée d'identité ni de contact ;
-- accès sur invitation, charte à la première connexion, information des parents (page `/parents`) avec droit d'opposition ;
+- accès sur invitation, charte à la première connexion ; pour les mineurs, information des parents (page `/parents`) obligatoire avant toute publication, avec droit d'opposition ;
 - publication uniquement à la demande de l'élève, relue par le mentor, retirable par l'élève lui-même ; sites non indexés ;
 - aucune publicité, aucun profilage, aucun traceur ;
 - sécurité renforcée (voir le registre des traitements).

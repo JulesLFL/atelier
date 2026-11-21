@@ -10,6 +10,18 @@
 
 export const journal = [
   {
+    version: '1.5',
+    date: '2026-11-21',
+    titre: 'Ouvert à tous les débutants',
+    resume: 'L’Atelier s’adresse maintenant aux débutants de tout âge, et le changement de thème est animé.',
+    changements: [
+      { type: 'amelioration', texte: 'Les pages de présentation s’adressent à tous : lycéens, étudiants, adultes en reconversion ou simples curieux.' },
+      { type: 'amelioration', texte: 'Le passage du thème clair au thème sombre se fait avec une animation (désactivée si ton appareil demande moins d’animations).' },
+      { type: 'nouveau', texte: 'Nouvelles questions dans la FAQ : « C’est pour qui ? » et « Combien de temps faut-il ? ».' },
+      { type: 'securite', texte: 'Pour les élèves mineurs, les parents sont toujours informés avant toute publication.' },
+    ],
+  },
+  {
     version: '1.4',
     date: '2026-11-20',
     titre: 'Plus de missions, un nouveau look',

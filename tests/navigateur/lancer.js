@@ -357,9 +357,13 @@ try {
   await nav.attendre("document.querySelector('[data-nb-missions]').textContent === '28'", { message: 'chiffres du programme' });
   ok(true, 'accueil : les chiffres viennent du vrai catalogue (28 missions)');
   await nav.evaluer("(localStorage.removeItem('atelier:theme'), document.querySelector('.bascule-theme').click(), true)");
-  const theme1 = await nav.evaluer('document.documentElement.dataset.theme');
+  const theme1 = await nav.attendre('document.documentElement.dataset.theme', { message: 'premier changement de thème' });
+  await new Promise((r2) => setTimeout(r2, 800));
   await nav.evaluer("document.querySelector('.bascule-theme').click()");
-  const theme2 = await nav.evaluer('document.documentElement.dataset.theme');
+  const animations = await nav.evaluer(`new Promise((ok) => setTimeout(() => ok(document.documentElement.getAnimations({ subtree: true }).map((a) => (a.effect.pseudoElement || '') + ' ' + (a.effect.getKeyframes()[0]?.clipPath || '')).join(' | ')), 120))`);
+  ok(/view-transition-new\(root\) circle/.test(animations), `animation du thème : le cercle s’étend depuis le bouton (${animations.slice(0, 70)}…)`);
+  const theme2 = await nav.attendre(`document.documentElement.dataset.theme !== '${theme1}' && document.documentElement.dataset.theme`, { message: 'second changement de thème' });
+  ok((await nav.evaluer('typeof document.startViewTransition')) === 'function', 'animation du thème : API View Transitions disponible dans Firefox');
   ok(theme1 && theme2 && theme1 !== theme2, `bouton de thème : ${theme1} puis ${theme2}`);
   await nav.attendre("!document.querySelector('#section-vitrine').hidden && document.querySelector('#apercu-vitrine .carte-site')", { message: 'dernières créations sur l’accueil' });
   ok(true, 'accueil : les dernières créations de la vitrine sont affichées');
@@ -391,7 +395,7 @@ try {
   await nav.attendre("document.querySelector('.carte-site .signaler')", { message: 'lien « Signaler »' });
   ok((await nav.evaluer("document.querySelector('.carte-site .signaler').getAttribute('href')")).startsWith('mailto:'), 'vitrine : lien « Signaler ce site »');
 
-  const erreursApp = nav.journal.filter((j) => j.level === 'error' && !/about:srcdoc/.test(j.source?.context || '') && !/atelier|bouton|cookie|parent|Boucle|Cross-Origin Request Blocked/i.test(j.text));
+  const erreursApp = nav.journal.filter((j) => j.level === 'error' && !/about:srcdoc/.test(j.source?.context || '') && !/atelier|bouton|cookie|parent|Boucle|Cross-Origin Request Blocked/i.test(j.text) && !/downloadable font: download failed.*status=2152398850/.test(j.text)); // 2152398850 = téléchargement annulé par un changement de page
   ok(erreursApp.length === 0, `aucune erreur JS dans l’application elle-même${erreursApp.length ? ' : ' + erreursApp.map((e) => e.text).join(' | ') : ''}`);
 } catch (e) {
   echecs++;

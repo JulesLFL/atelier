@@ -463,3 +463,18 @@ describe('Conformité', () => {
     expect(sys.inactifs.map((x) => x.pseudo)).toContain('endormi');
   });
 });
+
+describe('Élèves majeurs et mineurs', () => {
+  it('un élève majeur peut être publié sans information des parents ; un mineur, non', async () => {
+    const m = await t.mentor();
+    const majeur = (await m.post('/api/mentor/eleves').set('X-Atelier', '1').send({ pseudo: 'adulte', mineur: false }).expect(201)).body;
+    const mineur = await t.nouvelEleve(m, 'ado');
+    for (const e of [majeur, mineur]) t.appli.bdd.definirAccords(e.id, { publication: Date.now(), vitrine: null });
+    await m.post(`/api/mentor/eleves/${majeur.id}/publication`).set('X-Atelier', '1').expect(200);
+    expect((await m.post(`/api/mentor/eleves/${mineur.id}/publication`).set('X-Atelier', '1')).status).toBe(409);
+    expect((await m.get(`/api/mentor/eleves/${mineur.id}`)).body.mineur).toBe(true);
+    const fiche = (await m.put(`/api/mentor/eleves/${mineur.id}/mineur`).set('X-Atelier', '1').send({ mineur: false }).expect(200)).body;
+    expect(fiche.mineur).toBe(false);
+    await m.post(`/api/mentor/eleves/${mineur.id}/publication`).set('X-Atelier', '1').expect(200);
+  });
+});

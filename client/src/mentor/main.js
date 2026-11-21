@@ -612,7 +612,7 @@ function ongletPublication(c) {
           ]
         : h('strong', {}, '⏳ L’élève n’a pas encore demandé la publication. Il le fait depuis son atelier : « 🌍 Mon site → Demander la publication ».'),
     ),
-    !f.parentsInformes && h('div', { class: 'carte-accord' }, h('strong', {}, '👨‍👩‍👧 Les parents n’ont pas encore été indiqués comme informés'), h('span', {}, ' : onglet 🔑 Accès.')),
+    f.mineur && !f.parentsInformes && h('div', { class: 'carte-accord' }, h('strong', {}, '👨‍👩‍👧 Élève mineur : ses parents n’ont pas encore été indiqués comme informés'), h('span', {}, ' (onglet 🔑 Accès).')),
     h(
       'div',
       { class: 'carte-publication' },
@@ -651,7 +651,7 @@ function ongletPublication(c) {
         : [
             h('p', { class: 'statut-pub' }, '⚪ Pas encore publié'),
             h('p', { class: 'aide-onglet' }, `Publier crée une copie du site de l’élève à l’adresse ${f.urlSite}. Seuls les modules débloqués (${f.etat.onglets.map((o) => o.toUpperCase()).join(', ')}) sont inclus.`),
-            h('button', { class: 'bouton-principal', onclick: publier, disabled: !f.accords?.publication || !f.parentsInformes, title: !f.accords?.publication ? 'En attente de l’accord de l’élève' : !f.parentsInformes ? 'Indique d’abord que les parents ont été informés' : '' }, '🌍 Publier le site'),
+            h('button', { class: 'bouton-principal', onclick: publier, disabled: !f.accords?.publication || (f.mineur && !f.parentsInformes), title: !f.accords?.publication ? 'En attente de l’accord de l’élève' : f.mineur && !f.parentsInformes ? 'Élève mineur : indique d’abord que ses parents ont été informés' : '' }, '🌍 Publier le site'),
           ],
     ),
     h('section', { class: 'carte-publication' }, h('h2', {}, '⬇️ Fichiers du site'), h('p', { class: 'aide-onglet' }, 'Le code actuel de l’élève (pas forcément la version publiée), en .zip : index.html, style.css, script.js.'), h('a', { class: 'bouton-secondaire', href: `/api/mentor/eleves/${M.selection}/site.zip` }, 'Télécharger le .zip')),
@@ -704,9 +704,31 @@ function ongletAcces(c) {
       notifier({ icone: '⚠️', texte: e.message, type: 'erreur' });
     }
   };
+  const changerMineur = async (mineur) => {
+    try {
+      M.fiche = { ...(await api('PUT', `/api/mentor/eleves/${M.selection}/mineur`, { mineur })), enLigne: M.fiche.enLigne };
+      rendreFiche();
+    } catch (e) {
+      notifier({ icone: '⚠️', texte: e.message, type: 'erreur' });
+    }
+  };
   vider(
     c,
     h(
+      'section',
+      { class: 'carte-publication' },
+      h('h2', {}, '🎂 Âge'),
+      h(
+        'label',
+        { class: 'interrupteur' },
+        h('input', { type: 'checkbox', role: 'switch', checked: f.mineur, onchange: (e) => changerMineur(e.target.checked) }),
+        h('span', { class: 'glissiere', 'aria-hidden': 'true' }),
+        f.mineur ? 'Élève mineur' : 'Élève majeur',
+      ),
+      h('p', { class: 'aide-onglet' }, 'Seule cette information est gardée (jamais l’âge). Pour un mineur, ses parents doivent être informés avant toute publication.'),
+      h('p', { class: 'aide-onglet' }, f.charteAcceptee ? `📜 Charte acceptée par l’élève le ${new Date(f.charteAcceptee).toLocaleDateString('fr-FR')}.` : '📜 L’élève n’a pas encore accepté la charte (elle s’affiche à sa première connexion).'),
+    ),
+    f.mineur && h(
       'section',
       { class: 'carte-publication' },
       h('h2', {}, '👨‍👩‍👧 Information des parents'),
@@ -715,7 +737,6 @@ function ongletAcces(c) {
       f.parentsInformes
         ? h('div', { class: 'ligne' }, h('strong', { class: 'ok-parents' }, `✅ Parents informés le ${new Date(f.parentsInformes).toLocaleDateString('fr-FR')}`), h('button', { class: 'bouton-discret petit', onclick: () => parents(false) }, 'Annuler'))
         : h('button', { class: 'bouton-principal', onclick: () => parents(true) }, 'Les parents ont été informés'),
-      h('p', { class: 'aide-onglet' }, f.charteAcceptee ? `📜 Charte acceptée par l’élève le ${new Date(f.charteAcceptee).toLocaleDateString('fr-FR')}.` : '📜 L’élève n’a pas encore accepté la charte (elle s’affiche à sa première connexion).'),
     ),
     h('section', { class: 'carte-publication' }, h('h2', {}, '🔑 Lien d’accès'), h('p', { class: 'aide-onglet' }, 'Le lien est stocké chiffré : on ne peut pas le réafficher. Génère un nouveau lien si l’élève a perdu le sien.'), h('button', { class: 'bouton-principal', onclick: regenerer }, 'Générer un nouveau lien')),
     h(
@@ -731,6 +752,7 @@ function ongletAcces(c) {
 
 async function nouvelEleve() {
   const champ = h('input', { class: 'champ', id: 'nouveau-pseudo', placeholder: 'ex. alex', maxlength: 20, autocomplete: 'off', spellcheck: 'false' });
+  const caseMineur = h('input', { type: 'checkbox', id: 'nouveau-mineur', checked: true });
   const erreur = h('p', { class: 'erreur', role: 'alert' });
   const fermer = fenetre(
     'Nouvel élève',
@@ -742,7 +764,7 @@ async function nouvelEleve() {
         onsubmit: async (e) => {
           e.preventDefault();
           try {
-            const r = await api('POST', '/api/mentor/eleves', { pseudo: champ.value });
+            const r = await api('POST', '/api/mentor/eleves', { pseudo: champ.value, mineur: caseMineur.checked });
             fermer();
             await chargerEleves();
             await selectionner(r.id);
@@ -754,6 +776,7 @@ async function nouvelEleve() {
       },
       h('label', { for: 'nouveau-pseudo' }, 'Pseudo'),
       champ,
+      h('label', { class: 'case-mineur', for: 'nouveau-mineur' }, caseMineur, ' Élève mineur (ses parents seront informés avant toute publication)'),
       erreur,
       h('button', { class: 'bouton-principal', type: 'submit' }, 'Créer'),
     ),

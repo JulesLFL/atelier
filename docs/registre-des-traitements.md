@@ -12,9 +12,9 @@
 | Rubrique | Contenu |
 |---|---|
 | Finalités | Fournir l'atelier d'apprentissage (enregistrer le travail, la progression) ; permettre au mentor d'assurer le suivi pédagogique ; publier le site de l'élève à sa demande. |
-| Base légale | Intérêt légitime (art. 6.1.f) : mentorat demandé par la famille. Les parents sont informés (page `/parents`, date notée dans le panneau) et peuvent s'opposer à tout moment. Publication : à la demande de l'élève (case dans son atelier) + relecture du mentor. |
-| Personnes concernées | Élèves (mineurs, collège), accompagnés par le mentor. |
-| Données | Pseudo ; empreinte HMAC du code d'accès ; code HTML/CSS/JS et 60 versions ; missions réussies, indices, badges, résultats de quiz ; dates et durée des séances ; messages et notes du mentor ; site publié, nombre de visites, présence en vitrine ; dates d'acceptation de la charte, d'information des parents, d'accord de publication et de vitrine. **Aucune** donnée d'identité civile, de contact ni sensible. |
+| Base légale | Intérêt légitime (art. 6.1.f) : mentorat demandé par l'élève. Pour un élève mineur, les parents sont informés (page `/parents`, date notée dans le panneau, obligatoire avant toute publication) et peuvent s'opposer à tout moment. Publication : à la demande de l'élève (case dans son atelier) + relecture du mentor. |
+| Personnes concernées | Élèves débutants de tout âge, dont des mineurs, accompagnés par le mentor. |
+| Données | Pseudo ; indication mineur/majeur (jamais l'âge) ; empreinte HMAC du code d'accès ; code HTML/CSS/JS et 60 versions ; missions réussies, indices, badges, résultats de quiz ; dates et durée des séances ; messages et notes du mentor ; site publié, nombre de visites, présence en vitrine ; dates d'acceptation de la charte, d'information des parents, d'accord de publication et de vitrine. **Aucune** donnée d'identité civile, de contact ni sensible. |
 | Destinataires | Le mentor uniquement. Site publié : public pour qui a l'adresse (non indexé). Vitrine : publique, seulement avec l'accord de l'élève. |
 | Sous-traitants | Cloudflare, Inc. (acheminement, États-Unis, EU-US DPF). Discord Inc. (alertes au mentor : pseudo + événement, États-Unis, EU-US DPF), si activé. |
 | Transferts hors UE | Cloudflare et Discord (cadre EU-US Data Privacy Framework). |

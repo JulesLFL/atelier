@@ -81,7 +81,7 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
     const { valeur: pseudo, erreur } = validerPseudo(req.body?.pseudo);
     if (erreur) return res.status(400).json({ erreur });
     if (bdd.eleveParPseudo(pseudo)) return res.status(409).json({ erreur: 'Ce pseudo existe déjà.' });
-    const { eleve, code } = bdd.creerEleve(pseudo);
+    const { eleve, code } = bdd.creerEleve(pseudo, { mineur: req.body?.mineur !== false });
     res.status(201).json({ id: eleve.id, pseudo, code, lien: lien(code) });
   });
 
@@ -198,7 +198,8 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
   r.post('/eleves/:id/publication', (req, res) => {
     // Rien n'est publié sans l'accord de l'élève, donné depuis son atelier.
     if (!req.eleve.accord_publication) return res.status(409).json({ erreur: 'L’élève n’a pas encore demandé la publication (bouton « Mon site » de son atelier).' });
-    if (!req.eleve.parents_informes) return res.status(409).json({ erreur: 'Indique d’abord que les parents ont été informés (onglet Accès).' });
+    // Pour un élève mineur, les parents doivent avoir été informés (onglet Accès).
+    if (req.eleve.mineur && !req.eleve.parents_informes) return res.status(409).json({ erreur: 'Élève mineur : indique d’abord que ses parents ont été informés (onglet Accès).' });
     service.ecrireMaintenant(req.eleve.id); // on publie la toute dernière version
     bdd.ajouterVersion(req.eleve.id, 'publication');
     const { onglets } = service.etatDeblocage(req.eleve.id);
@@ -223,6 +224,12 @@ export function routesMentor({ bdd, auth, service, catalogue, temps, config, sau
   r.put('/eleves/:id/parents', (req, res) => {
     if (typeof req.body?.informes !== 'boolean') return res.status(400).json({ erreur: '« informes » doit valoir true ou false.' });
     bdd.definirParentsInformes(req.eleve.id, req.body.informes ? Date.now() : null);
+    res.json(service.ficheMentor(req.eleve.id));
+  });
+
+  r.put('/eleves/:id/mineur', (req, res) => {
+    if (typeof req.body?.mineur !== 'boolean') return res.status(400).json({ erreur: '« mineur » doit valoir true ou false.' });
+    bdd.definirMineur(req.eleve.id, req.body.mineur);
     res.json(service.ficheMentor(req.eleve.id));
   });
 

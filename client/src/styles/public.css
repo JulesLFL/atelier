@@ -1105,8 +1105,35 @@ html[data-theme='sombre'] .page-publique .formulaire-connexion .erreur {
     grid-template-columns: 1fr;
   }
 }
+/* --- Changement de thème animé --------------------------------------------------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+html.transition-theme .page-publique,
+html.transition-theme .page-publique * {
+  transition:
+    background-color 0.45s ease,
+    color 0.45s ease,
+    border-color 0.45s ease !important;
+}
+.bascule-theme.tourne svg {
+  animation: tourneIcone 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes tourneIcone {
+  from {
+    transform: rotate(-120deg) scale(0.3);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .curseur {
+  .curseur,
+  .bascule-theme.tourne svg {
     animation: none;
   }
 }

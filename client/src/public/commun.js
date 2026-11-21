@@ -15,16 +15,46 @@ function majBouton() {
   b.title = `Passer au thème ${suivant}`;
 }
 
-document.querySelector('.bascule-theme')?.addEventListener('click', () => {
+// Changement de thème animé : le nouveau thème s'étend en cercle depuis le bouton
+// (API View Transitions). Sinon, fondu des couleurs. Rien si l'appareil demande moins d'animations.
+function changerTheme(bouton) {
   const nouveau = themeActuel() === 'sombre' ? 'clair' : 'sombre';
-  racine.dataset.theme = nouveau;
-  try {
-    localStorage.setItem('atelier:theme', nouveau);
-  } catch {
-    /* navigation privée : le choix ne sera pas retenu */
+  const appliquer = () => {
+    racine.dataset.theme = nouveau;
+    try {
+      localStorage.setItem('atelier:theme', nouveau);
+    } catch {
+      /* navigation privée : le choix ne sera pas retenu */
+    }
+    majBouton();
+  };
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return appliquer();
+
+  bouton.classList.remove('tourne');
+  void bouton.offsetWidth; // relance l'animation de l'icône
+  bouton.classList.add('tourne');
+
+  if (document.startViewTransition) {
+    const r = bouton.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const rayon = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const transition = document.startViewTransition(appliquer);
+    transition.ready
+      .then(() =>
+        racine.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${rayon}px at ${x}px ${y}px)`] },
+          { duration: 650, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
+        ),
+      )
+      .catch(() => {});
+  } else {
+    racine.classList.add('transition-theme');
+    appliquer();
+    setTimeout(() => racine.classList.remove('transition-theme'), 500);
   }
-  majBouton();
-});
+}
+document.querySelector('.bascule-theme')?.addEventListener('click', (e) => changerTheme(e.currentTarget));
 majBouton();
 
 // Lien du menu correspondant à la page actuelle

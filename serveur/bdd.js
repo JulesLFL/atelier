@@ -115,6 +115,10 @@ export const MIGRATIONS = [
   ALTER TABLE eleves ADD COLUMN parents_informes INTEGER;
   ALTER TABLE eleves ADD COLUMN charte_acceptee INTEGER;
   `,
+  // Version 5 : l'élève est-il mineur ? (oui/non seulement, jamais l'âge). Les élèves existants le restent.
+  `
+  ALTER TABLE eleves ADD COLUMN mineur INTEGER NOT NULL DEFAULT 1;
+  `,
 ];
 
 const VERSIONS_MAX = 60; // versions gardées par élève
@@ -255,6 +259,7 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     vitrine: db.prepare('UPDATE eleves SET vitrine = ? WHERE id = ?'),
     accords: db.prepare('UPDATE eleves SET accord_publication = ?, accord_vitrine = ? WHERE id = ?'),
     parentsInformes: db.prepare('UPDATE eleves SET parents_informes = ? WHERE id = ?'),
+    mineur: db.prepare('UPDATE eleves SET mineur = ? WHERE id = ?'),
     charte: db.prepare('UPDATE eleves SET charte_acceptee = COALESCE(charte_acceptee, ?) WHERE id = ?'),
     inactifs: db.prepare('SELECT id, pseudo, derniere_activite FROM eleves WHERE COALESCE(derniere_activite, cree_le) < ? ORDER BY pseudo'),
     listeVitrine: db.prepare(`SELECT e.pseudo, p.html, p.publie_le FROM eleves e JOIN publications p ON p.eleve_id = e.id
@@ -268,11 +273,12 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     fermer: () => db.close(),
 
     // --- Élèves -----------------------------------------------------------
-    creerEleve(pseudo) {
+    creerEleve(pseudo, { mineur = true } = {}) {
       const code = genererCodeAcces();
       const t = maintenant();
       const id = db.transaction(() => {
         const { lastInsertRowid } = q.creerEleve.run(pseudo, hacherCode(code), t);
+        if (!mineur) q.mineur.run(0, lastInsertRowid);
         q.creerProjet.run(lastInsertRowid, CODE_INITIAL.html, CODE_INITIAL.css, CODE_INITIAL.js, t);
         return Number(lastInsertRowid);
       })();
@@ -402,6 +408,7 @@ export function ouvrirBdd({ dossier, secret, fichier = 'atelier.db', avantMigrat
     /** Accords de l'élève (date, ou null s'il n'a pas donné / a retiré son accord). */
     definirAccords: (id, { publication, vitrine }) => q.accords.run(publication ?? null, vitrine ?? null, id),
     definirParentsInformes: (id, date) => q.parentsInformes.run(date ?? null, id),
+    definirMineur: (id, mineur) => q.mineur.run(mineur ? 1 : 0, id),
     accepterCharte: (id) => q.charte.run(maintenant(), id),
     /** Élèves sans activité depuis plus de « jours » jours. */
     inactifs: (jours = 365) => q.inactifs.all(maintenant() - jours * 86400000),
